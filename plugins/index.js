@@ -83,6 +83,13 @@ module.exports = (on, config) => {
       return globalVar;
     },
 
+    log(message) {
+      console.log('\n======================');
+      console.log(message);
+      console.log('======================\n');
+      return null;
+    },
+
     ssh ({username, host='', remoteCommand}) { 
       return new Promise((resolve, reject) => {
 

@@ -36,14 +36,35 @@ export class Constants {
     public rancher_available_extensions = '/c/_/uiplugins#available';
 }
 
+export const RancherPageUrl = {
+  user: `/c/local/auth/management.cattle.io.user`,
+}
+
 export const PageUrl = {
     setting: '/harvester/c/local/harvesterhci.io.setting',
     virtualMachine: '/harvester/c/local/kubevirt.io.virtualmachine',
     vmNetwork: '/harvester/c/local/harvesterhci.io.networkattachmentdefinition',
     clusterNetwork: '/harvester/c/local/network.harvesterhci.io.clusternetwork',
     namespace: '/harvester/c/local/namespace',
-    volumeSnapshot: '/harvester/c/local/harvesterhci.io.volumesnapshot'
+    volumeSnapshot: '/harvester/c/local/harvesterhci.io.volumesnapshot',
+    clusterMember: '/harvester/c/local/management.cattle.io.clusterroletemplatebinding',
+    project: '/harvester/c/local/projectsnamespaces',
 }
+
+/**
+ * Helper function to replace cluster identifier in URLs with actual clusterId
+ * - Replaces 'local' with clusterId (for Rancher contexts using Harvester standalone URLs)
+ * - Replaces '{clusterId}' placeholder with clusterId (for dynamic URLs)
+ * @param url - URL with 'local' or '{clusterId}' to be replaced
+ * @param clusterId - Optional clusterId to use. If not provided, uses Cypress.config('clusterId')
+ * @returns URL with clusterId replaced
+ */
+export const replaceClusterId = (url: string, clusterId?: string): string => {
+  const actualClusterId = clusterId || Cypress.config('clusterId');
+  return url.replace(/\{clusterId\}|\/local\//g, (match) => {
+    return match === '{clusterId}' ? actualClusterId : `/${actualClusterId}/`;
+  });
+};
 
 export const MenuNav = {
     dashboard: ['Dashboard', 'harvester/c/local/harvesterhci.io.dashboard', 'Harvester Cluster: local'],

@@ -2,6 +2,7 @@ import cookie from 'cookie';
 import addContext from "mochawesome/addContext";
 
 import { Constants } from '../constants/constants'
+import { CAPI } from '@/constants/types'
 
 const path = require('path')
 
@@ -10,12 +11,26 @@ const constants = new Constants();
 require('cy-verify-downloads').addCustomCommand();
 
 Cypress.Commands.add('login', (params = {}) => {
-    let url = params.url || constants.dashboardUrl;
-    const username = params.username ||   Cypress.env('username');
+    const finalUrl = params.url;
+    let username = params.username || Cypress.env('username');
     const password = params.password || Cypress.env('password');
+    
+    // For Rancher login, always start with Virtualization Management to load cluster data
+    let initialUrl = finalUrl;
 
-    const isDev = Cypress.env('NODE_ENV') === 'dev';
-    const baseUrl = isDev ? Cypress.config('baseUrl') : `${Cypress.config('baseUrl')}/dashboard`;
+    if (params.isRancher) {
+      Cypress.config('baseUrl', Cypress.env('rancherUrl'));
+      // Always use Virtualization Management page first to ensure cluster data loads
+      initialUrl = '/c/local/harvesterManager/harvesterhci.io.management.cluster';
+    } else if (username === 'admin') {
+      Cypress.config('baseUrl', Cypress.env('baseUrl'));
+      initialUrl = initialUrl || constants.dashboardUrl;
+    } else {
+      Cypress.config('baseUrl', Cypress.env('rancherUrl'));
+      initialUrl = initialUrl || constants.dashboardUrl;
+    }
+
+    cy.visit(`/auth/login`);
     cy.intercept('GET', '/v3-public/authProviders').as('authProviders');
     cy.visit(`/auth/login`);
     cy.wait('@authProviders').then(res => {
@@ -32,9 +47,68 @@ Cypress.Commands.add('login', (params = {}) => {
         headers: {
           'x-api-csrf': CSRF
         }
-      }).then(() => {
-        cy.visit(url).log(url); // After successful login, you can switch to the specified page, which is the home page by default
-        cy.get(".dashboard-content .product-name", { timeout: constants.timeout.maxTimeout }).contains("Harvester")
+      }).then(async () => {
+        cy.visit(initialUrl); // Visit initial URL to load necessary data
+        cy.get('.initial-load-spinner', { timeout: constants.timeout.maxTimeout })
+
+        if (username === 'admin' && !params.isRancher) {
+          cy.get(".dashboard-content .product-name").contains("Harvester")
+
+          Cypress.config('clusterId', 'local'); 
+        } else {
+          cy.get('[data-testid="top-level-menu"]')
+
+          if (!Cypress.config('clusterId')) {
+            // Wait for clusters to load into the store
+            cy.window().then((win) => {
+              // Poll until clusters are loaded
+              return new Cypress.Promise((resolve) => {
+                const checkClusters = () => {
+                  const allClusters = win.$nuxt.$store.getters['management/all'](CAPI.RANCHER_CLUSTER);
+                  cy.task('log', `Checking clusters... type: ${typeof allClusters}, isArray: ${Array.isArray(allClusters)}, length: ${allClusters?.length}`);
+                  if (allClusters && allClusters.length > 0) {
+                    resolve(allClusters);
+                  } else {
+                    setTimeout(checkClusters, 500);
+                  }
+                };
+                checkClusters();
+              });
+            }).then((allClusters) => {
+              cy.task('log', `Clusters loaded! Count: ${allClusters.length}`);
+              
+              // Find Harvester cluster by provider (not by name, as name might be auto-generated)
+              const harvesterCluster = allClusters.find((c) => 
+                c.status?.provider === 'harvester' || 
+                c.metadata?.labels?.['provider.cattle.io']?.includes('harvester') ||
+                c.metadata?.name === 'harvester'
+              );
+              
+              if (harvesterCluster) {
+                const clusterId = harvesterCluster?.status?.clusterName || harvesterCluster.id;
+                cy.task('log', `ClusterId retrieved: ${clusterId} (from cluster: ${harvesterCluster.metadata?.name}, provider: ${harvesterCluster.status?.provider})`);
+                Cypress.config('clusterId', clusterId);
+                Cypress.env('clusterId', clusterId);  // Store in env as well for better persistence
+              } else {
+                const clusterInfo = allClusters.map((c) => `${c.metadata?.name} (provider: ${c.status?.provider})`).join(', ');
+                cy.task('log', `Warning: No Harvester cluster found. Available clusters: ${clusterInfo}`);
+              }
+            });
+          }
+
+          // Navigate to final destination if provided and different from initial
+          if (finalUrl && finalUrl !== initialUrl) {
+            cy.then(() => {
+              // Automatically replace /local/ with clusterId if present in the URL
+              const clusterId = Cypress.config('clusterId') || Cypress.env('clusterId');
+              const processedUrl = finalUrl.replace(/\/local\//g, `/${clusterId}/`);
+              
+              cy.task('log', `Navigating to final destination: ${processedUrl} (using clusterId: ${clusterId})`);
+              cy.visit(processedUrl);
+              cy.get('.initial-load-spinner', { timeout: constants.timeout.maxTimeout })
+            });
+          }
+        }
       });
     })
 });
