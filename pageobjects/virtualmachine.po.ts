@@ -200,11 +200,11 @@ export class VmsPage extends CruResourcePo {
     edit = false,
   } = {}) {
     if (edit) {
-      cy.intercept('PUT', '/v1/harvester/kubevirt.io.virtualmachines/*/*').as('createVM');
+      cy.intercept('PUT', '**/v1/harvester/kubevirt.io.virtualmachines/*/*').as('createVM');
       cy.get('.cru-resource-footer').contains('Save').click()
       cy.get('.card-actions').contains('Save and Restart').click()
     } else {
-      cy.intercept('POST', '/v1/harvester/kubevirt.io.virtualmachines/*').as('createVM');
+      cy.intercept('POST', '**/v1/harvester/kubevirt.io.virtualmachines/*').as('createVM');
       cy.get('.cru-resource-footer').contains('Create').click()
     }
 
@@ -469,23 +469,26 @@ export class VmsPage extends CruResourcePo {
   }
 
   public delete(namespace: string, name: string, displayName?: string, { removeRootDisk, id }: { removeRootDisk?: boolean, id?: string } = { removeRootDisk: true }) {
-    cy.visit(`/harvester/c/local/${this.type}`)
+    cy.then(() => {
+      const clusterId = Cypress.config('clusterId') || Cypress.env('clusterId') || 'local';
+      cy.visit(`/harvester/c/${clusterId}/${this.type}`)
 
-    this.clickAction(name, 'Delete').then((_) => {
-      if (!removeRootDisk) {
-        this.rootDisk().click();
-      }
-    })
-
-    cy.intercept('DELETE', `/v1/harvester/${this.realType}s/${namespace}/${name}*`).as('delete');
-    cy.get(this.confirmRemove).contains('Delete').click();
-    cy.wait('@delete').then(res => {
-      cy.window().then((win) => {
-        const id = `${namespace}/${name}`;
-        super.checkDelete(this.type, id, 240)
-        expect(res.response?.statusCode, `Delete ${this.type}`).to.be.oneOf([200, 204]);
+      this.clickAction(name, 'Delete').then((_) => {
+        if (!removeRootDisk) {
+          this.rootDisk().click();
+        }
       })
-    })
+
+      cy.intercept('DELETE', `**/v1/harvester/${this.realType}s/${namespace}/${name}*`).as('delete');
+      cy.get(this.confirmRemove).contains('Delete').click();
+      cy.wait('@delete').then(res => {
+        cy.window().then((win) => {
+          const id = `${namespace}/${name}`;
+          super.checkDelete(this.type, id, 240)
+          expect(res.response?.statusCode, `Delete ${this.type}`).to.be.oneOf([200, 204]);
+        })
+      })
+    });
   }
 
   public plugVolume(vmName: string, volumeNames: Array<string>, namespace: string) {

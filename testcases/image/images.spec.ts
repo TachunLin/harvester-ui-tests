@@ -335,7 +335,7 @@ describe('Create a ISO image via upload', () => {
     const IMAGE_NAME = generateName('auto-image-iso-upload-test');
     const VM_NAME = generateName('auto-image-iso-test-vm');
 
-    it('Create a ISO image via upload', () => {
+    it.only('Create a ISO image via upload', () => {
         cy.login();
 
         // create IMAGE

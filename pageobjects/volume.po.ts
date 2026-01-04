@@ -99,7 +99,7 @@ export class VolumePage extends CruResourcePo {
 
     cy.intercept(
       "POST",
-      `v1/harvester/persistentvolumeclaims/*/${volumeName}?action=export`
+      `**/v1/harvester/persistentvolumeclaims/*/${volumeName}?action=export`
     ).as("exportImage");
     cy.get(this.exportImageActions).contains("Create").click();
     cy.wait("@exportImage").then((res) => {

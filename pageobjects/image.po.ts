@@ -116,7 +116,8 @@ export class ImagePage extends CruResourcePo {
     return new Promise((resolve, reject) => {
       const interceptName = generateName('create');
 
-      cy.intercept(edit ? 'PUT' : 'POST', `/v1/harvester/harvesterhci.io.virtualmachineimages${upload ? '/*' : edit ? '/*/*' : ''}`).as(interceptName);
+      // Use ** pattern to match both standalone and Rancher API paths
+      cy.intercept(edit ? 'PUT' : 'POST', `**/v1/harvester/harvesterhci.io.virtualmachineimages${upload ? '/*' : edit ? '/*/*' : ''}`).as(interceptName);
       cy.get('.cru-resource-footer').contains(!edit ? 'Create' : 'Save').click();
       cy.wait(`@${interceptName}`).then(async (res) => {
         if (edit && res.response?.statusCode === 409 && depth === 0) {

@@ -34,6 +34,15 @@ export default class CruResourcePo extends PagePo {
   public actionMenuIcon = '.icon-actions'
   public actionButton = '[data-testid="masthead-create"]';
 
+  /**
+   * Resolves cluster ID dynamically at runtime:
+   * - Rancher mode: Uses Cypress.config('clusterId') or Cypress.env('clusterId')
+   * - Standalone mode: Defaults to 'local'
+   */
+  private getClusterId(): string {
+    return Cypress.config('clusterId') || Cypress.env('clusterId') || 'local';
+  }
+
   namespace() {
     return new LabeledSelectPo('.labeled-select', `:contains("Namespace")`)
   }
@@ -60,7 +69,11 @@ export default class CruResourcePo extends PagePo {
   }
 
   public create(value: any, urlWithNamespace?: boolean) {
-    cy.visit(`/harvester/c/local/${this.type}/create`)
+    // Resolve clusterId at runtime for both standalone and Rancher modes
+    cy.then(() => {
+      const clusterId = this.getClusterId();
+      cy.visit(`/harvester/c/${clusterId}/${this.type}/create`);
+    });
 
     this.setValue(value)
 
@@ -72,7 +85,11 @@ export default class CruResourcePo extends PagePo {
   }
 
   public clone(id: string, value: any) {
-    cy.visit(`/harvester/c/local/${this.type}/${id}?mode=clone`)
+    // Resolve clusterId at runtime for both standalone and Rancher modes
+    cy.then(() => {
+      const clusterId = this.getClusterId();
+      cy.visit(`/harvester/c/${clusterId}/${this.type}/${id}?mode=clone`);
+    });
 
     this.setValue(value)
 
@@ -89,10 +106,11 @@ export default class CruResourcePo extends PagePo {
     buttonText?: string,
     edit?: boolean;
   } = {}) {
+    // Use ** pattern to match both standalone and Rancher API paths
     if (namespace) {
-      cy.intercept('POST', `/v1/harvester/${this.realType}s/${namespace}`).as('create');
+      cy.intercept('POST', `**/v1/harvester/${this.realType}s/${namespace}`).as('create');
     } else {
-      cy.intercept('POST', `/v1/harvester/${this.realType}s`).as('create');
+      cy.intercept('POST', `**/v1/harvester/${this.realType}s`).as('create');
     }
 
     this.clickFooterBtn(buttonText)
@@ -102,7 +120,11 @@ export default class CruResourcePo extends PagePo {
   }
 
   public delete(namespace: any, name: string, displayName?: string) {
-    cy.visit(`/harvester/c/local/${this.type}`)
+    // Resolve clusterId at runtime for both standalone and Rancher modes
+    cy.then(() => {
+      const clusterId = this.getClusterId();
+      cy.visit(`/harvester/c/${clusterId}/${this.type}`);
+    });
 
     this.clickAction(displayName || name, 'Delete')
 
@@ -114,7 +136,8 @@ export default class CruResourcePo extends PagePo {
       id = `${namespace}/${name}`;
     }
 
-    cy.intercept('DELETE', `/v1/harvester/${this.realType}s/${id}*`).as('delete');
+    // Use ** pattern to match both standalone and Rancher API paths
+    cy.intercept('DELETE', `**/v1/harvester/${this.realType}s/${id}*`).as('delete');
     cy.get(this.confirmRemove).contains('Delete').click();
     cy.wait('@delete').then(res => {
       cy.window().then((win) => {
@@ -176,11 +199,11 @@ export default class CruResourcePo extends PagePo {
 
   public update(id: string, namespace?: string, type?: string) {
     const _type = type || this.realType;
-    // VM image use PATCH to edit the resource
+    // VM image use PATCH to edit the resource - use ** pattern for both modes
     if( _type === 'harvesterhci.io.virtualmachineimage' ){
-      cy.intercept('PATCH', `apis/harvesterhci.io/v1beta1/namespaces/${namespace}/virtualmachineimages/${id}`).as('update');
+      cy.intercept('PATCH', `**/apis/harvesterhci.io/v1beta1/namespaces/${namespace}/virtualmachineimages/${id}`).as('update');
     } else {
-      cy.intercept('PUT', `/v1/harvester/${_type}s/${id}*`).as('update');
+      cy.intercept('PUT', `**/v1/harvester/${_type}s/${id}*`).as('update');
     }
     cy.get(this.footerButtons).contains('Save').click()
     cy.wait('@update').then(res => {
@@ -273,8 +296,13 @@ export default class CruResourcePo extends PagePo {
   }
 
   public goToList() {
-    cy.intercept('GET', `/v1/harvester/${this.realType}s*`).as('goToList');
-    cy.visit(`/harvester/c/local/${this.type}`)
+    // Use ** pattern to match both standalone (/v1/harvester/...) and Rancher (/k8s/clusters/{id}/v1/harvester/...)
+    cy.intercept('GET', `**/v1/harvester/${this.realType}s*`).as('goToList');
+    // Resolve clusterId at runtime to support both standalone ('local') and Rancher (dynamic clusterId)
+    cy.then(() => {
+      const clusterId = this.getClusterId();
+      cy.visit(`/harvester/c/${clusterId}/${this.type}`);
+    });
     cy.wait('@goToList');
   }
 
