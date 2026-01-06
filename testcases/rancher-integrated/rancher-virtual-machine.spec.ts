@@ -11,6 +11,8 @@ const constants = new Constants();
 // Use base page objects directly - they now support both standalone and Rancher modes
 const vms = new VmsPage();
 const volumePO = new VolumePage();
+const imagePO = new ImagePage();
+const namespaces = new NamespacePage();
 
 
 describe('VM Form Validation - Rancher Mode', () => {
@@ -106,7 +108,7 @@ describe('VM clone Validation - Rancher Mode', () => {
   /**
    * https://harvester.github.io/tests/manual/virtual-machines/create-vm-with-existing-volume/
    */
-  it.only('Create VM with existing volume', () => {
+  it('Create VM with existing volume', () => {
     const namespace = 'default'
     const VM_NAME = 'use-existing-volume';
 
@@ -151,6 +153,155 @@ describe('VM clone Validation - Rancher Mode', () => {
 
     vms.deleteVMFromStore(`${namespace}/${VM_NAME}`);
     volumePO.deleteFromStore(`${namespace}/${volumeValue.name}`);
+  })
+})
+
+describe('VM runStategy Validation (Halted) - Rancher Mode', () => {
+  beforeEach(() => {
+    cy.login({
+      username: 'admin',
+      isRancher: true,
+      url: replaceClusterId(PageUrl.virtualMachine),
+    });
+  });
+
+  const namespace = 'default'
+
+  it('Create VM use Halted (Run Strategy)', () => {
+    vms.goToCreate();
+
+    const imageEnv = Cypress.env('image');
+
+    const VM_NAME = 'vm-halted';
+    const volume = [{
+      buttonText: 'Add Volume',
+      create: false,
+      image: `default/${Cypress._.toLower(imageEnv.name)}`,
+      size: 4
+    }];
+
+    const advancedOption = {
+      runStrategy: 'Halted'
+    };
+
+    vms.deleteVMFromStore(`${namespace}/${VM_NAME}`)
+    vms.setNameNsDescription(VM_NAME, namespace);
+    vms.setBasics('1', '1');
+    vms.setVolumes(volume);
+    vms.setAdvancedOption(advancedOption);
+    vms.save();
+    vms.checkVMState(VM_NAME, 'Off');
+    vms.deleteVMFromUI(namespace, VM_NAME)
+  });
+})
+
+/**
+ * 1. Create vm "vm-1"
+ * 2. Create a image "img-1" by export the volume used by vm "vm-1"
+ * 3. Delete vm "vm-1"
+ * 4. Delete image "img-1"
+ * Expected Results
+ * 1. Image "img-1" will be deleted
+ */
+describe("Delete VM with exported image - Rancher Mode", () => {
+  it("Delete VM with exported image", () => {
+    const VM_NAME = generateName('vm-1');
+    const namespace = 'default'
+
+    cy.login({
+      username: 'admin',
+      isRancher: true,
+      url: replaceClusterId(PageUrl.virtualMachine),
+    });
+
+    const imageEnv = Cypress.env('image');
+
+    const value = {
+      name: VM_NAME,
+      cpu: '1',
+      memory: '1',
+      image: Cypress._.toLower(imageEnv.name),
+      namespace,
+    }
+
+    vms.goToCreate();
+    vms.setValue(value);
+
+    cy.intercept('POST', '**/v1/harvester/kubevirt.io.virtualmachines/*').as('createVM');
+    cy.get('.cru-resource-footer').contains('Create').click()
+    cy.wait('@createVM').then(res => {
+      expect(res.response?.statusCode, 'Check create VM').to.equal(201);
+      const body = res.response?.body
+      const volumeClaimTemplates = body?.metadata?.annotations?.['harvesterhci.io/volumeClaimTemplates']
+      const volumes = JSON.parse(volumeClaimTemplates || '{}')
+
+      const imageName = generateName('img-1');
+
+      volumePO.goToList()
+      volumePO.exportImage(volumes[0].metadata.name, imageName)
+      imagePO.goToList()
+      imagePO.checkState({ name: imageName, size: '10 Gi' }); // Check image state before delete vm
+
+      cy.intercept('DELETE', `**/v1/harvester/kubevirt.io.virtualmachines/${namespace}/${VM_NAME}*`).as('deleteVM');
+      vms.delete(namespace, VM_NAME)
+      cy.wait('@deleteVM').then(res => {
+        expect(res.response?.statusCode, 'Delete VM').to.be.oneOf([200, 204]);
+
+        imagePO.goToList()
+
+        cy.intercept('DELETE', `**/v1/harvester/harvesterhci.io.virtualmachineimages/${namespace}/*`).as('deleteImage');
+        imagePO.clickAction(imageName, 'Delete')
+        cy.get('[data-testid="prompt-remove-confirm-button"]').click()
+        cy.wait('@deleteImage').then(res => {
+          expect(res.response?.statusCode, 'Delete Image').to.be.oneOf([200, 204]);
+        })
+      })
+    })
+  });
+})
+
+describe('All Namespace filtering in VM list - Rancher Mode', () => {
+  beforeEach(() => {
+    cy.login({
+      username: 'admin',
+      isRancher: true,
+      url: replaceClusterId(PageUrl.namespace),
+    });
+  });
+
+  // https://harvester.github.io/tests/manual/_incoming/2578-all-namespace-filtering/  
+  // TODO: go to rancher cluster
+  it('Test Namespace filter', () => {
+    const namespace = generateName('test-ns')
+
+    // create a new namespace
+    namespaces.goToCreate();
+    namespaces.setNameDescription(namespace);
+    namespaces.save();
+
+    // create vm in test namespace
+    const imageEnv = Cypress.env('image');
+
+    const VM_NAME = generateName('namespace-test');
+    const volume = [{
+      buttonText: 'Add Volume',
+      create: false,
+      image: `default/${Cypress._.toLower(imageEnv.name)}`,
+      size: 4
+    }];
+
+    vms.goToCreate();
+    vms.setNameNsDescription(VM_NAME, namespace);
+    vms.setBasics('1', '1');
+    vms.setVolumes(volume);
+    vms.save();
+
+    // Check whether the namespace is displayed
+    VmsPage.header.findNamespace(namespace);
+    vms.censorInColumn(VM_NAME, 3, namespace, 4, 'Running', 2, { timeout: constants.timeout.maxTimeout, nameSelector: '.name-console a' });
+
+    // tear down
+    vms.deleteVMFromStore(`${namespace}/${VM_NAME}`);
   })
 })
 
