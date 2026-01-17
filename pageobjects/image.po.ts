@@ -130,4 +130,48 @@ export class ImagePage extends CruResourcePo {
         .end();
     });
   }
+
+  /**
+   * Get the count of all images in the store
+   * @returns Cypress chainable that resolves to the number of images
+   */
+  getImageCount() {
+    // Wait for the page to be fully loaded and store to initialize
+    return cy.get('.sortable-table', { timeout: constants.timeout.timeout })
+      .should('be.visible')
+      .wait(1000) // Wait for Vue/Nuxt store to initialize
+      .window()
+      .then((win) => {
+        const nuxt = (win as any).$nuxt;
+        if (!nuxt || !nuxt.$store) {
+          return 0;
+        }
+        
+        const imageList = nuxt.$store.getters['harvester/all'](HCI.IMAGE);
+        return imageList ? imageList.length : 0;
+      });
+  }
+
+  /**
+   * Bulk delete all images in the current view using the UI
+   * This method performs the following steps:
+   * 1. Selects all images using the table header checkbox
+   * 2. Clicks the bulk Delete button
+   * 3. Checks the "Delete All" checkbox in the confirmation dialog
+   * 4. Confirms the deletion
+   */
+  bulkDeleteAll() {
+    // Step 1: Select all images using the table header checkbox
+    this.selectAllRows();
+    cy.log('Selected all images');
+
+    // Step 2: Wait for and click the bulk Delete button
+    cy.get('#promptRemove').should('not.be.disabled').click();
+    cy.log('Clicked Delete button');
+
+    // Step 3: Click final Delete confirmation button
+    cy.intercept('DELETE', '**/v1/harvester/harvesterhci.io.virtualmachineimages/**').as('deleteImages');
+    cy.get('[data-testid="prompt-remove-confirm-button"]').contains('Delete').click();
+    cy.log('Confirmed deletion');
+  }
 }

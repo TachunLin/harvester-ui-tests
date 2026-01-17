@@ -57,34 +57,6 @@ describe('Auto setup image from cypress environment - Rancher Mode', () => {
   })
 })
 
-// describe("Basic Rancher integrated mode test", () => {
-//   it("Access Harvester in Rancher virtualization management", () => {
-
-//     // Direct login with PageUrl constant - should automatically replace /local/ with clusterId
-//     cy.login({
-//       username: 'admin',
-//       isRancher: true,
-//       url: PageUrl.clusterMember,
-//     });
-
-//     // Navigate to Virtual Machine page after Rancher login
-//     cy.then(() => {
-//       const vmUrl = replaceClusterId(PageUrl.virtualMachine);
-//       cy.task('log', `=== Navigating to VM page: ${vmUrl} ===`);
-//       cy.visit(vmUrl);
-      
-//       // Verify we're on the Virtual Machine page
-//       cy.get('.initial-load-spinner', { timeout: constants.timeout.maxTimeout })
-//       cy.then(() => {
-//         const clusterId = Cypress.config('clusterId');
-//         cy.url().should('include', `/harvester/c/${clusterId}/kubevirt.io.virtualmachine`);
-//         cy.task('log', `=== Successfully navigated to VM page with clusterId: ${clusterId} ===`);
-//       });
-//     });
-//   })
-// })
-
-
 /**
  * 1. Create image with cloud image available for openSUSE
  * 2. Click save

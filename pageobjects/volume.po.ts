@@ -141,4 +141,38 @@ export class VolumePage extends CruResourcePo {
   basePath() {
     return Cypress.env('NODE_ENV') === 'dev' ? Cypress.env('baseUrl') : `${Cypress.env('baseUrl')}/dashboard`;
   }
+
+  /**
+   * Get the count of all volumes in the store
+   * @returns Cypress chainable that resolves to the number of volumes
+   */
+  getVolumeCount() {
+    return cy.window().then((win) => {
+      const volumeList = (win as any).$nuxt.$store.getters['harvester/all'](PVC);
+      return volumeList ? volumeList.length : 0;
+    });
+  }
+
+  /**
+   * Bulk delete all volumes in the current view using the UI
+   * This method performs the following steps:
+   * 1. Selects all volumes using the table header checkbox
+   * 2. Clicks the bulk Delete button
+   * 3. Checks the "Delete All" checkbox in the confirmation dialog
+   * 4. Confirms the deletion
+   */
+  bulkDeleteAll() {
+    // Step 1: Select all volumes using the table header checkbox
+    this.selectAllRows();
+    cy.log('Selected all volumes');
+
+    // Step 2: Wait for and click the bulk Delete button
+    cy.get('#promptRemove').should('not.be.disabled').click();
+    cy.log('Clicked Delete button');
+
+    // Step 3: Click final Delete confirmation button
+    cy.intercept('DELETE', '**/v1/harvester/persistentvolumeclaims/**').as('deleteVolumes');
+    cy.get('[data-testid="prompt-remove-confirm-button"]').contains('Delete').click();
+    cy.log('Confirmed deletion');
+  }
 }

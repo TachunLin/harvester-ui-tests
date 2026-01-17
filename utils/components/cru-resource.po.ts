@@ -327,4 +327,13 @@ export default class CruResourcePo extends PagePo {
       })
     })
   }
+
+  /**
+   * Select all rows in the table using the header checkbox
+   * This triggers the Vue event handlers to enable bulk actions like Delete
+   */
+  public selectAllRows() {
+    cy.get('[data-testid="sortable-table_check_select_all"]').find('span[role="checkbox"]').click();
+    cy.log('Selected all rows in table');
+  }
 }

@@ -230,6 +230,44 @@ export class VmsPage extends CruResourcePo {
     this.deleteFromStore(id, HCI.VMI); // You need to wait for the vmi to be deleted as well, because it will not be deleted until the vm is deleted
   }
 
+  /**
+   * Get the count of all VMs in the store
+   * @returns Cypress chainable that resolves to the number of VMs
+   */
+  getVmCount() {
+    return cy.window().then((win) => {
+      const vmList = (win as any).$nuxt.$store.getters['harvester/all'](HCI.VM);
+      return vmList ? vmList.length : 0;
+    });
+  }
+
+  /**
+   * Bulk delete all VMs in the current view using the UI
+   * This method performs the following steps:
+   * 1. Selects all VMs using the table header checkbox
+   * 2. Clicks the bulk Delete button
+   * 3. Checks the "Delete All" checkbox in the confirmation dialog
+   * 4. Confirms the deletion
+   */
+  bulkDeleteAll() {
+    // Step 1: Select all VMs using the table header checkbox
+    this.selectAllRows();
+    cy.log('Selected all VMs');
+
+    // Step 2: Wait for and click the bulk Delete button
+    cy.get('#promptRemove').should('not.be.disabled').click();
+    cy.log('Clicked Delete button');
+
+    // Step 3: Check "Delete All" checkbox in confirmation dialog
+    cy.get('.checkbox-container').contains('Delete All').parent().find('input[type="checkbox"]').click({ force: true });
+    cy.log('Checked Delete All option');
+
+    // Step 4: Click final Delete confirmation button
+    cy.intercept('DELETE', '**/v1/harvester/kubevirt.io.virtualmachines/**').as('deleteVMs');
+    cy.get('[data-testid="prompt-remove-confirm-button"]').contains('Delete').click();
+    cy.log('Confirmed deletion');
+  }
+
   deleteVMFromUI(namespace: string, name: string) {
     this.goToList();
     this.clickAction(name, 'Delete');
