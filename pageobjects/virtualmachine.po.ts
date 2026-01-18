@@ -513,7 +513,7 @@ export class VmsPage extends CruResourcePo {
 
       this.clickAction(name, 'Delete').then((_) => {
         if (!removeRootDisk) {
-          this.rootDisk().click();
+          this.rootDisk().click({force: true});
         }
       })
 
