@@ -16,6 +16,7 @@ import './dashboard/1_login.spec'
 //  * These tests verify Harvester functionality when accessed through Rancher UI
 //  * All tests use Rancher authentication and URL patterns
 //  */
-
+// Rancher integration tests
+import './rancher/rancher_integration.spec'
 import './rancher-integrated/rancher-images.spec'
 import './rancher-integrated/rancher-virtual-machine.spec'
