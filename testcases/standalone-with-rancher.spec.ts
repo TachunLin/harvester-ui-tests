@@ -53,9 +53,6 @@ import './dashboard/nav.spec'
 // import './dashboard/hosts.spec'
 // import './dashboard/support.spec'
 
-// // Rancher integration tests
-// import './rancher/rancher_integration.spec'
-
 // /**
 //  * Entry point for environment cleanup
 //  * Runs after standalone tests to clean up test resources before Rancher-integrated tests
@@ -68,13 +65,14 @@ import './dashboard/nav.spec'
 //  */
 // import './cleanup/cleanup-env.spec'
 
-// /**
-//  * Entry point for Rancher-integrated tests
-//  * Runs after cleanup in a clean environment
-//  * 
-//  * These tests verify Harvester functionality when accessed through Rancher UI
-//  * All tests use Rancher authentication and URL patterns
-//  */
-
-// import './rancher-integrated/rancher-images.spec'
-// import './rancher-integrated/rancher-virtual-machine.spec'
+/**
+ * Entry point for Rancher-integrated tests
+ * Runs after cleanup in a clean environment
+ * 
+ * These tests verify Harvester functionality when accessed through Rancher UI
+ * All tests use Rancher authentication and URL patterns
+ */
+// Rancher integration tests
+import './rancher/rancher_integration.spec'
+import './rancher-integrated/rancher-images.spec'
+import './rancher-integrated/rancher-virtual-machine.spec'
