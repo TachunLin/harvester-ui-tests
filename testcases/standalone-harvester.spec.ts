@@ -7,18 +7,18 @@
 // Dashboard tests - Run first for initial setup and login
 import './dashboard/0_FirstTimeLogin.spec'
 import './dashboard/1_login.spec'
-// import './dashboard/nav.spec'
+import './dashboard/nav.spec'
 
 
-// // Settings tests - Configure environment
-// import './settings/settings.spec'
+// Settings tests - Configure environment
+import './settings/settings.spec'
 
-// // Infrastructure tests
-// import './namespaces/namespaces.spec'
-// import './storageclasses/storageclasses.spec'
+// Infrastructure tests
+import './namespaces/namespaces.spec'
+import './storageclasses/storageclasses.spec'
 
-// // Image tests
-// import './image/images.spec'
+// Image tests
+import './image/images.spec'
 
 // // Network tests
 // import './networks/cluster-network.spec'
