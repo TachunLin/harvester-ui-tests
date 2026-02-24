@@ -6,10 +6,6 @@ const clusterNetwork = new clusterNetworkPage();
 
 let clusterNetworkCreated: boolean = false;
 
-beforeEach(() => {
-    cy.login({url: PageUrl.clusterNetwork});
-});
-
 /**
  * 1. Login
  * 2. Navigate to the Networks -> Cluster Network Configuration page
@@ -19,6 +15,9 @@ beforeEach(() => {
  * 6. Check the `cn` cluster network display on the Cluster Network Configuration list 
  */
 describe('Cluster Network Configuration', () => {
+  beforeEach(() => {
+    cy.login({url: PageUrl.clusterNetwork});
+  });
   it('Create cluster network', () => {
 
     clusterNetwork.createClusterNetwork('cn');
