@@ -52,18 +52,3 @@ import './templates/advanced.spec'
 // Host and Support tests
 import './dashboard/hosts.spec'
 import './dashboard/support.spec'
-
-// Rancher integration tests
-import './rancher/rancher_integration.spec'
-
-/**
- * Entry point for environment cleanup
- * Runs after standalone tests to clean up test resources before Rancher-integrated tests
- * 
- * This cleanup ensures a clean state for Rancher-integrated tests by removing:
- * - VM backups and snapshots
- * - Virtual machines
- * - Volumes
- * - Images 
- */
-import './cleanup/cleanup-env.spec'
