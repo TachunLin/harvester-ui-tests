@@ -50,7 +50,7 @@ import './templates/template.spec'
 import './templates/advanced.spec'
 
 // Host and Support tests
-import './dashboard/hosts.spec'
+import './hosts/hosts.spec'
 import './dashboard/support.spec'
 
 /**
