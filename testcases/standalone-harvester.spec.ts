@@ -50,5 +50,5 @@ import './templates/template.spec'
 import './templates/advanced.spec'
 
 // Host and Support tests
-import './hosts/hosts.spec'
+import './z_hosts/z_hosts.spec'
 import './dashboard/support.spec'
