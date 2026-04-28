@@ -19,6 +19,7 @@ export class HostsPage extends CruResourcePo {
   private editButton = '.icon-edit';
   private resourceYamlSave = '.resource-yaml .footer.edit'
   private editYamlButton = '.icon-file';
+  private saveButton = '[data-testid="async-btn-display-label"]';
 
   constructor() {
     super({
@@ -79,6 +80,10 @@ export class HostsPage extends CruResourcePo {
   cleanValue(){
     this.customName().clear();
     this.consoleUrl().clear();
+  }
+
+  save(){
+    cy.get(this.saveButton).click();
   }
 
   setValue(value:ValueInterface) {

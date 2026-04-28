@@ -50,6 +50,7 @@ export class rancherPage {
     private virtual_page_clusterName = ':nth-child(1) > .labeled-input > input';
     private virtual_page_createCluster = '.cru-resource-footer > div > .role-primary';
 
+    private local_apps_git_repository_card = '[data-testid="item-card-git-repo"]';
     private local_apps_repo_name = '[data-testid="name-ns-description-name"]';
     private local_apps_repo_url = '[data-testid="clusterrepo-git-repo-input"]';
     private local_apps_repo_branch = '[data-testid="clusterrepo-git-branch-input"]';
@@ -245,13 +246,16 @@ export class rancherPage {
         cy.visit(constants.rancher_nodeTamplatePage);
     }
 
+    public click_git_repository_card() {
+        cy.get(this.local_apps_git_repository_card).click();
+    }
+
     public add_local_cluster_repo(Repo_name: string, Repo_url: string, Repo_branch: string) {
         // Visit the local cluster repository page
         cy.visit(constants.rancher_apps_repositories + '/create');
         cy.get(this.local_apps_repo_name).type(Repo_name);
-        // Select the Git repository option
-        const target = new RadioButtonPo('.radio-group');
-        target.input(/Git repository/);
+        // Select the Git repository option (For Rancher v2.14.0 after)
+        this.click_git_repository_card();
         // Input Git Repo URL and Branch to create the repository
         cy.get(this.local_apps_repo_url).type(Repo_url);
         cy.get(this.local_apps_repo_branch).type(Repo_branch);
@@ -262,21 +266,25 @@ export class rancherPage {
     public install_harvester_ui_extension(version: string, rancherVersion: string) {
         // Visit the Extension -> Available page
         this.visit_available_extensions();
-        
+
+        // Parse minor version to determine which UI flow to use (v2.13+ uses dropdown menu)
+        const minorVersion = parseInt(rancherVersion.replace(/^v/, '').split('.')[1], 10);
+        const isNewUI = minorVersion >= 13;
+
         // Check Rancher version to determine which UI flow to use
-        if (rancherVersion.startsWith('v2.13')) {
+        if (isNewUI) {
             // Rancher v2.13+ uses dropdown menu for install
-            cy.log('Using Rancher v2.13+ UI flow');
+            cy.log(`Using Rancher v2.13+ UI flow (detected: ${rancherVersion})`);
             // Click the 3-dot menu button on the Harvester extension card
             cy.get(this.extension_card_menu_button).click();
             // Click the Install option from the dropdown menu
             cy.get(this.extension_dropdown_menu_install).contains('Install').click();
         } else {
             // Rancher < v2.13 uses direct install button
-            cy.log('Using Rancher < v2.13 UI flow');
+            cy.log(`Using Rancher < v2.13 UI flow (detected: ${rancherVersion})`);
             cy.get(this.extension_card_harvester_install).click();
         }
-        
+
         // Common steps for both versions
         // Search and select the version from the dropdown menu list
         const versionSelect = new LabeledSelectPo('[data-testid="install-ext-modal-select-version"]');
@@ -285,7 +293,7 @@ export class rancherPage {
         cy.get(this.install_harvester_extensionButton).click();
         cy.get(this.extension_reloadButton).click();
 
-        if (rancherVersion.startsWith('v2.13')) {
+        if (isNewUI) {
             // Switch to Installed tab
             cy.get(this.extension_installed_tab).click();
             // Ensure the Harvester extension card exists
@@ -294,7 +302,6 @@ export class rancherPage {
             // Ensure the Harvester extension card exists
             cy.get(this.extension_installed_card_harvester).should('exist', { timeout: constants.timeout.timeout });
         }
-        
     }
 
     public importHarvester() {
@@ -322,11 +329,20 @@ export class rancherPage {
             cy.get('#cluster-registration-url').click();
             cy.get('.icon.icon.icon-edit').click();
 
-            cy.get('input').clear().type(url);
+            cy.get('.labeled-input input[role="textbox"]').clear({ force: true }).type(url);
+            cy.contains('.checkbox-outer-container', 'Insecure Skip TLS Verify')
+              .then(($container) => {
+                const $checkbox = $container.find('input[type="checkbox"]');
 
+                if (!$checkbox.is(':checked')) {
+                  cy.wrap($container).find('.checkbox-custom').click();
+                }
+              });
         })
 
         cy.get('.cru-resource-footer > div > .btn').should('contain', 'Save').click();
+        // Handle the Tip confirmation dialog that appears after saving
+        cy.get('[data-testid="card-actions-slot"]').contains('button', 'OK').click();
     }
 
     // public checkState(value: ValueInterface, valid: boolean = true) {

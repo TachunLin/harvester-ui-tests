@@ -173,7 +173,7 @@ export class LoginPage {
     changePassword({ currentPassword, newPassword }: { currentPassword: string, newPassword: string }) {
         cy.visit(constants.accountUrl);
         cy.get('.account').contains('Change Password').click();
-        cy.intercept('POST', '/v3/users?action=changepassword').as('changePassword');
+        cy.intercept('POST', '/v1/ext.cattle.io.passwordchangerequests').as('changePassword');
         cy.get('.prompt-password').within(() => {
             this.currentPassword().input(currentPassword);
             this.newPassword().input(newPassword);
@@ -181,7 +181,7 @@ export class LoginPage {
             cy.get('button[type="submit"]').click();
         })
         cy.wait('@changePassword').then(res => {
-            expect(res.response?.statusCode, 'Change password').to.equal(200);
+            expect(res.response?.statusCode, 'Change password').to.equal(201);
         })
     }
 }

@@ -30,15 +30,20 @@ export class EditYamlPage {
     public insertCustomName(customName:string) {
         const customNameAnnotation = `harvesterhci.io/host-custom-name: ${customName}`;
         // this.parseYaml();
-        cy.get(this.yamlInput).then((editor) => {
+        cy.get(this.yamlInput).should('be.visible').then((editor) => {
             // codemirror API: https://codemirror.net/5/doc/manual.html
             const cm = editor[0].CodeMirror;
 
-            cm.focus();
-            cm.setCursor(5, 0); // CodeMirror uses 0-based indexing for lines
-            cm.execCommand('goLineEnd'); // Move cursor to the end
-            cm.execCommand('newlineAndIndent'); // Insert a newline and auto-indent the new line.
-            cm.replaceSelection(customNameAnnotation);
+            // Wait for CodeMirror to be ready
+            cy.wrap(null).then(() => {
+                cm.focus();
+                cy.wait(100); // Small wait for focus to take effect
+            }).then(() => {
+                cm.setCursor(5, 0); // CodeMirror uses 0-based indexing for lines
+                cm.execCommand('goLineEnd'); // Move cursor to the end
+                cm.execCommand('newlineAndIndent'); // Insert a newline and auto-indent the new line.
+                cm.replaceSelection(customNameAnnotation);
+            });
           });
     }
 
