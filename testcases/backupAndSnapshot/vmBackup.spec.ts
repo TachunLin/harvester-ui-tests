@@ -29,24 +29,24 @@ describe('VM Backup Validation', () => {
       try { parsed = JSON.parse(res.body?.value); } catch (e) {}
 
       if (!parsed?.endpoint) {
-        cy.log('Backup target not configured — setting NFS backup target');
+        cy.log('Backup target not configured — setting S3 backup target');
+        const backupTarget = Cypress.env('backupTarget');
+
         settings.clickMenu('backup-target', 'Edit Setting', 'backup-target');
-        settings.setNFSBackupTarget('NFS', Cypress.env('nfsEndPoint'));
+        settings.setS3BackupTarget({
+          type: 'S3',
+          endpoint: backupTarget.endpoint,
+          bucketName: backupTarget.bucketName,
+          bucketRegion: backupTarget.bucketRegion,
+          accessKeyId: backupTarget.accessKey,
+          secretAccessKey: backupTarget.secretKey,
+        });
         settings.update('backup-target');
         backupTargetSetByTest = true;
       } else {
         cy.log(`Backup target already configured: ${parsed.type || 'unknown type'}`);
       }
     });
-  });
-
-  after(() => {
-    // Only clear the backup target if this test suite was the one that set it
-    if (backupTargetSetByTest) {
-      cy.log('Clearing backup target set by this test suite');
-      cy.login({ url: PageUrl.setting });
-      settings.clearBackupTarget();
-    }
   });
 
   beforeEach(() => {
