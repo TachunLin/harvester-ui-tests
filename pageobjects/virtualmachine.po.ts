@@ -171,8 +171,8 @@ export class VmsPage extends CruResourcePo {
   }
 
   clickMigrateAction(name: string, targetNode: string) {
-    this.clickAction(name, 'Migrate');
-    cy.get('[data-testid="card-title-slot"]').contains('Migration');
+    this.clickAction(name, 'Virtual Machine Migration');
+    cy.get('[data-testid="card-title-slot"]').contains('Migrating');
 
     const nodeNameSelector = new LabeledSelectPo('.labeled-select', `:contains("Target Node")`)
     nodeNameSelector.select({ option: targetNode, selector: '.vs__dropdown-menu' });

@@ -6,7 +6,6 @@ import { ImagePage } from "@/pageobjects/image.po";
 import VMBackup from '@/pageobjects/vmBackup.po';
 import { generateName } from '@/utils/utils';
 import { Constants } from "@/constants/constants";
-import { host as hostUtil } from '@/utils/utils';
 import { onlyOn } from "@cypress/skip-test";
 
 const vms = new VmsPage();
@@ -19,6 +18,8 @@ const vmBackups = new VMBackup();
 const vmNetworkName = `vlan${(Cypress.env('networks') || {})?.vlans?.[0]}`;
 
 let clusterNodeCount = 0;
+// Live cluster node names, used to pick a real migration target instead of a static env fixture
+let liveNodeNames: string[] = [];
 
 before(function() {
   cy.login();
@@ -29,6 +30,7 @@ before(function() {
   }).then((resp) => {
     const nodeList: any[] = resp.body?.data ?? resp.body?.items ?? [];
     clusterNodeCount = nodeList.length;
+    liveNodeNames = nodeList.map((node: any) => node.id ?? node.metadata?.name);
     if (clusterNodeCount >= 2) {
       // Ensure the largeImage is available before migration tests run
       vms.init();
@@ -119,14 +121,9 @@ sshpwauth: True
         const originalNode = nodeName.trim();
         cy.log(`VM is currently running on node: ${originalNode}`);
 
-        // Find the first node that doesn't match the original node
-        const targetNode = hostUtil.list().find(host => {
-          const hostName = host.name || host.customName;
-          return hostName !== originalNode;
-        });
-        const targetNodeName = targetNode?.name || targetNode?.customName || '';
+        // Pick a real node offered by the live cluster, not the VM's current node
+        const targetNodeName = liveNodeNames.find((n) => n !== originalNode) || '';
 
-        // Add null check before using targetNodeName
         if (!targetNodeName) {
           throw new Error(`No available target node found for migration. Original node: ${originalNode}`);
         }
@@ -261,14 +258,9 @@ sshpwauth: True
         const originalNode = nodeName.trim();
         cy.log(`VM is currently running on node: ${originalNode}`);
 
-        // Find the first node that doesn't match the original node
-        const targetNode = hostUtil.list().find(host => {
-          const hostName = host.name || host.customName;
-          return hostName !== originalNode;
-        });
-        const targetNodeName = targetNode?.name || targetNode?.customName || '';
+        // Pick a real node offered by the live cluster, not the VM's current node
+        const targetNodeName = liveNodeNames.find((n) => n !== originalNode) || '';
 
-        // Add null check before using targetNodeName
         if (!targetNodeName) {
           throw new Error(`No available target node found for migration. Original node: ${originalNode}`);
         }
@@ -434,14 +426,9 @@ sshpwauth: True
         const originalNode = nodeName.trim();
         cy.log(`VM is currently running on node: ${originalNode}`);
 
-        // Find the first node that doesn't match the original node
-        const targetNode = hostUtil.list().find(host => {
-          const hostName = host.name || host.customName;
-          return hostName !== originalNode;
-        });
-        const targetNodeName = targetNode?.name || targetNode?.customName || '';
+        // Pick a real node offered by the live cluster, not the VM's current node
+        const targetNodeName = liveNodeNames.find((n) => n !== originalNode) || '';
 
-        // Add null check before using targetNodeName
         if (!targetNodeName) {
           throw new Error(`No available target node found for migration. Original node: ${originalNode}`);
         }

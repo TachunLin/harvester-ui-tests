@@ -128,9 +128,6 @@ describe('Create an image with valid image URL', () => {
         cy.wrap(image.save()).then((realName) => {
             // check IMAGE state
             image.checkState_without_size({ name: LARGE_IMAGE_NAME });
-
-            // post-cleanup: delete the large image after the test
-            image.delete(namespace, realName as string, LARGE_IMAGE_NAME);
         })
     });
 
