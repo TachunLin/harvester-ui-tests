@@ -50,6 +50,7 @@ describe('login page for harvester', () => {
         page.validateLogin();
 
         Dashboard.header.logout();
+        page.visit();
         page.inputUsername();
         page.inputPassword();
         page.loginBtn.click();
