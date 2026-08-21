@@ -64,7 +64,7 @@ describe('Create an image with valid image URL', () => {
     const largeImageEnv = Cypress.env('largeImage');
     const IMAGE_NAME = generateName('auto-image-valid-url-test');
     const IMAGE_URL = imageEnv.url;
-    const LARGE_IMAGE_NAME = Cypress._.toLower(largeImageEnv.name);
+    const LARGE_IMAGE_NAME = largeImageEnv.name;
     const LARGE_IMAGE_URL = largeImageEnv.url;
 
     it('Create an image with valid image URL', () => {
