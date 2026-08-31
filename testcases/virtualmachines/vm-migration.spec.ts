@@ -79,7 +79,7 @@ sshpwauth: True
       name: VM_NAME,
       cpu: '1',
       memory: '2',
-      image: Cypress._.toLower(largeImageEnv.name),
+      image: largeImageEnv.name,
       networks: [{
         network: vmNetworkName,
       }],
@@ -100,7 +100,7 @@ sshpwauth: True
     // Check VM display IP address and ssh to the VM
     cy.contains('tr', VM_NAME)
       .wait(10000) // Wait for system ssh port ready
-      .find('[data-title="IP Address"] > div > span > .copy-to-clipboard-text')
+      .find('[data-testid="sortable-cell-0-5"] > .ip-list > .ip-item > .copy-to-clipboard-text')
       .then($els => {
         vms.sshWithCommand(
           VM_NAME,
@@ -206,7 +206,7 @@ sshpwauth: True
       name: VM_NAME,
       cpu: '1',
       memory: '2',
-      image: Cypress._.toLower(largeImageEnv.name),
+      image: largeImageEnv.name,
       networks: [{
         network: vmNetworkName,
       }],
@@ -227,7 +227,7 @@ sshpwauth: True
     // Check VM display IP address and ssh to the VM to create a test file
     cy.contains('tr', VM_NAME)
       .wait(10000) // Wait for system ssh port ready
-      .find('[data-title="IP Address"] > div > span > .copy-to-clipboard-text')
+      .find('[data-testid="sortable-cell-0-5"] > .ip-list > .ip-item > .copy-to-clipboard-text')
       .then($els => {
         vms.sshWithCommand(
           VM_NAME,
@@ -358,7 +358,7 @@ sshpwauth: True
       name: VM_NAME,
       cpu: '1',
       memory: '2',
-      image: Cypress._.toLower(largeImageEnv.name),
+      image: largeImageEnv.name,
       networks: [{
         network: vmNetworkName,
       }],
@@ -382,7 +382,7 @@ sshpwauth: True
     // SSH to VM and setup mount point and create files
     cy.contains('tr', VM_NAME)
       .wait(10000) // Wait for system ssh port ready
-      .find('[data-title="IP Address"] > div > span > .copy-to-clipboard-text', { 
+      .find('[data-testid="sortable-cell-0-5"] > .ip-list > .ip-item > .copy-to-clipboard-text', {
         timeout: constants.timeout.uploadTimeout 
       })
       .then($els => {

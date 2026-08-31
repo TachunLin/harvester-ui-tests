@@ -585,7 +585,7 @@ export class VmsPage extends CruResourcePo {
 
     // Get IP address and execute SSH command
     cy.contains('tr', vmName)
-      .find('[data-title="IP Address"] > div > span > .copy-to-clipboard-text')
+      .find('[data-testid="sortable-cell-0-5"] > .ip-list > .ip-item > .copy-to-clipboard-text')
       .then($els => {
         const address = $els[0]?.innerText;
 
