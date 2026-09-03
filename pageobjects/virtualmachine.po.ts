@@ -171,8 +171,8 @@ export class VmsPage extends CruResourcePo {
   }
 
   clickMigrateAction(name: string, targetNode: string) {
-    this.clickAction(name, 'Migrate');
-    cy.get('[data-testid="card-title-slot"]').contains('Migration');
+    this.clickAction(name, 'Virtual Machine Migration');
+    cy.get('[data-testid="card-title-slot"]').contains('Migrating');
 
     const nodeNameSelector = new LabeledSelectPo('.labeled-select', `:contains("Target Node")`)
     nodeNameSelector.select({ option: targetNode, selector: '.vs__dropdown-menu' });
@@ -585,7 +585,7 @@ export class VmsPage extends CruResourcePo {
 
     // Get IP address and execute SSH command
     cy.contains('tr', vmName)
-      .find('[data-title="IP Address"] > div > span > .copy-to-clipboard-text')
+      .find('[data-testid="sortable-cell-0-5"] > .ip-list > .ip-item > .copy-to-clipboard-text')
       .then($els => {
         const address = $els[0]?.innerText;
 

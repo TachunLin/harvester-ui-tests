@@ -16,26 +16,6 @@ before(() => {
   clusterNetworkPo.createNetworkConfig(`${clusterNetworkName}-nc`, nic);
 });
 
-after(() => {
-  const networksEnv = Cypress.env('networks') || {};
-  cy.login();
-
-  // 1. Delete VM networks created by "Preset Vlans" tests
-  const vmNetworkType = 'k8s.cni.cncf.io.networkattachmentdefinition';
-  const vlan0 = networksEnv.vlans?.[0] ?? 2011;
-  network.deleteFromStore(`default/vlan${vlan0}`, vmNetworkType);
-  if ((networksEnv.vlans?.length ?? 0) >= 2) {
-    const vlanId1 = networksEnv.vlans[1];
-    network.deleteFromStore(`default/vlan${vlanId1}`, vmNetworkType);
-  }
-
-  // 2. Delete network config
-  clusterNetworkPo.deleteFromStore(`${clusterNetworkName}-nc`, 'network.harvesterhci.io.vlanconfig');
-
-  // 3. Delete cluster network
-  clusterNetworkPo.deleteFromStore(clusterNetworkName);
-});
-
 interface Vlan {
   name: string,
   namespace: string,
