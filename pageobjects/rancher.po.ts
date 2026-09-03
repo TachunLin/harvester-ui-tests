@@ -66,6 +66,7 @@ export class rancherPage {
     private extension_installed_tab = '[data-testid="installed"]';
     private extension_available_tab = '[data-testid="available"]';
     private extension_installed_card_harvester = '[data-testid="item-card-cluster/harvester/harvester"]';
+    private extension_installed_card_harvester_213 = '[data-testid="item-card-cluster/harvester/harvester"]';
     private extension_card_harvester_uninstall = '[data-testid="extension-card-uninstall-btn-harvester"]';
 
     private cloudCredential_page_createButton = '.actions > .btn';
@@ -262,97 +263,75 @@ export class rancherPage {
         cy.wait(5000);
     }
 
+    /**
+     * Reloads the Available page every `intervalMs` until the Harvester extension card renders,
+     * giving up after `maxAttempts` reloads (default: 300s total at 10s intervals).
+     * Waits BEFORE checking so a just-reloaded page has time to fetch/render the card.
+     */
+    private waitForHarvesterCardWithReload(attempt: number = 0, maxAttempts: number = 30, intervalMs: number = 10000) {
+        cy.wait(intervalMs);
+
+        cy.get('body').then($body => {
+            const cardCount = $body.find(this.extension_card_harvester).length;
+
+            cy.log(`extension_card_harvester (${this.extension_card_harvester}) match count: ${cardCount}`);
+
+            if (cardCount > 0) {
+                return;
+            }
+
+            if (attempt >= maxAttempts) {
+                throw new Error(`Harvester extension card did not appear after ${(maxAttempts * intervalMs) / 1000} seconds`);
+            }
+
+            cy.log(`Harvester extension card not found, reloading page (attempt ${attempt + 1}/${maxAttempts})`);
+            cy.reload();
+            this.waitForHarvesterCardWithReload(attempt + 1, maxAttempts, intervalMs);
+        });
+    }
+
     public install_harvester_ui_extension(version: string, rancherVersion: string) {
+        // Visit the Extension -> Available page
+        this.visit_available_extensions();
+
+        // Add periodically reload to ensure Harvester extension card to appear
+        this.waitForHarvesterCardWithReload();
+
         // Parse minor version to determine which UI flow to use (v2.13+ uses dropdown menu)
         const minorVersion = parseInt(rancherVersion.replace(/^v/, '').split('.')[1], 10);
         const isNewUI = minorVersion >= 13;
 
-        // Navigate to the main extensions page
-        cy.visit('/c/_/uiplugins');
+        // Check Rancher version to determine which UI flow to use
+        if (isNewUI) {
+            // Rancher v2.13+ uses dropdown menu for install
+            cy.log(`Using Rancher v2.13+ UI flow (detected: ${rancherVersion})`);
+            // Click the 3-dot menu button on the Harvester extension card
+            cy.get(this.extension_card_menu_button).click();
+            // Click the Install option from the dropdown menu
+            cy.get(this.extension_dropdown_menu_install).contains('Install').click();
+        } else {
+            // Rancher < v2.13 uses direct install button
+            cy.log(`Using Rancher < v2.13 UI flow (detected: ${rancherVersion})`);
+            cy.get(this.extension_card_harvester_install).click();
+        }
 
-        cy.get('[data-testid="btn-installed"]', { timeout: 15000 }).click();
+        // Common steps for both versions
+        // Search and select the version from the dropdown menu list
+        const versionSelect = new LabeledSelectPo('[data-testid="install-ext-modal-select-version"]');
+        versionSelect.select({ option: version, selector: '.vs__dropdown-menu' });
+        // Click the Install button to install the Harvester extension
+        cy.get(this.install_harvester_extensionButton).click();
+        cy.get(this.extension_reloadButton).click();
 
-        // Give the installed list time to render before we check for the card
-        cy.get('body').then($body => {
-            const alreadyInstalled = $body.find(this.extension_installed_card_harvester).length > 0;
-
-            if (alreadyInstalled) {
-                // Read the installed version from the first sub-header badge on the card
-                cy.get(this.extension_installed_card_harvester)
-                    .find('[data-testid="app-chart-card-sub-header-item"]')
-                    .first()
-                    .invoke('text')
-                    .then(installedVersion => {
-                        if (installedVersion.trim() === version) {
-                            cy.log(`Harvester extension version ${version} already installed, nothing to do`);
-                        } else {
-                            // Wrong version installed – trigger an upgrade or downgrade via the action menu
-                            cy.log(`Version mismatch: installed="${installedVersion.trim()}", expected="${version}" – updating`);
-                            cy.get(this.extension_installed_card_harvester)
-                                .find(this.extension_card_menu_button)
-                                .click();
-                            // Click whichever of "Update" / "Downgrade" is present; both share the same attribute
-                            cy.get(this.extension_dropdown_menu_install)
-                                .filter((_, el) => {
-                                    const t = el.textContent?.trim() ?? '';
-                                    return t === 'Update' || t === 'Downgrade';
-                                })
-                                .first()
-                                .click();
-
-                            // Select exact version in the update dialog and confirm
-                            const versionSelect = new LabeledSelectPo('[data-testid="install-ext-modal-select-version"]');
-                            versionSelect.select({ option: version, selector: '.vs__dropdown-menu' });
-                            cy.get(this.install_harvester_extensionButton).click();
-                            cy.get(this.extension_reloadButton, { timeout: constants.timeout.uploadTimeout }).click();
-
-                            // Verify after reload
-                            cy.get('[data-testid="btn-installed"]').click();
-                            cy.get(this.extension_installed_card_harvester)
-                                .should('exist', { timeout: constants.timeout.timeout });
-                        }
-                    });
-            } else {
-                // Not yet installed – go to Available tab and install
-                cy.log(`Installing Harvester extension version ${version} (Rancher: ${rancherVersion})`);
-                cy.get('[data-testid="btn-available"]').click();
-
-                if (isNewUI) {
-                    // Rancher v2.13+ uses dropdown action-menu for install
-                    cy.log(`Using Rancher v2.13+ UI flow (detected: ${rancherVersion})`);
-                    cy.get(this.extension_card_harvester, { timeout: constants.timeout.uploadTimeout })
-                        .should('be.visible')
-                        .find(this.extension_card_menu_button)
-                        .click();
-                    // The dropdown item has attribute dropdown-menu-item=""; use exact text match
-                    cy.get(this.extension_dropdown_menu_install)
-                        .filter((_, el) => el.textContent?.trim() === 'Install')
-                        .first()
-                        .click();
-                } else {
-                    // Rancher < v2.13 uses a direct install button on the card
-                    cy.log(`Using Rancher < v2.13 UI flow (detected: ${rancherVersion})`);
-                    cy.get(this.extension_card_harvester_install, { timeout: constants.timeout.uploadTimeout })
-                        .should('be.visible')
-                        .click();
-                }
-
-                // Select the desired version from the install dialog dropdown
-                const versionSelect = new LabeledSelectPo('[data-testid="install-ext-modal-select-version"]');
-                versionSelect.select({ option: version, selector: '.vs__dropdown-menu' });
-
-                // Confirm the installation
-                cy.get(this.install_harvester_extensionButton).click();
-
-                // Wait for Rancher to finish deploying the extension (Helm chart) and show reload banner
-                cy.get(this.extension_reloadButton, { timeout: constants.timeout.uploadTimeout }).click();
-
-                // After reload, switch to Installed tab and confirm the card is present
-                cy.get('[data-testid="btn-installed"]').click();
-                cy.get(this.extension_installed_card_harvester)
-                    .should('exist', { timeout: constants.timeout.timeout });
-            }
-        });
+        if (isNewUI) {
+            // Switch to Installed tab
+            cy.get(this.extension_installed_tab).click();
+            // Ensure the Harvester extension card exists
+            cy.get(this.extension_installed_card_harvester_213).should('exist', { timeout: constants.timeout.timeout });
+        } else {
+            // Ensure the Harvester extension card exists
+            cy.get(this.extension_installed_card_harvester).should('exist', { timeout: constants.timeout.timeout });
+        }
     }
 
     public importHarvester() {
