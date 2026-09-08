@@ -9,10 +9,11 @@ FROM cypress/base:16@sha256:f4d5f616e83ee6f37913ea18bc1bc4f483bd49b3d7353d04a555
 ARG MC_VERSION
 ARG MC_SUM
 
-# Acquire::Check-Valid-Until=false works around expired bullseye-security Release files.
-# Acquire::Retries retries transient 404s from security.debian.org's CDN serving stale pool files vs its Packages index.
-RUN apt-get update -o Acquire::Check-Valid-Until=false -o Acquire::Retries=5 && \
-    apt-get install -y git xauth
+# Acquire::http::No-Cache forces a bypass of security.debian.org's CDN (Fastly) cache, which was serving a stale
+# Packages index pointing at a .deb already superseded upstream, causing 404s despite a "successful" apt-get update.
+# Acquire::Retries adds resilience against any other transient fetch failures.
+RUN apt-get update -o Acquire::http::No-Cache=true -o Acquire::Retries=5 && \
+    apt-get install -y -o Acquire::http::No-Cache=true -o Acquire::Retries=5 git xauth
 
 # Download mc binary and verify against checksum defined in this Dockerfile (not fetched from internet).
 # Build will abort if checksum does not match.
