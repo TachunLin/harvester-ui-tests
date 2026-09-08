@@ -9,7 +9,7 @@ FROM cypress/base:16@sha256:f4d5f616e83ee6f37913ea18bc1bc4f483bd49b3d7353d04a555
 ARG MC_VERSION
 ARG MC_SUM
 
-RUN apt-get update
+RUN apt-get update -o Acquire::Check-Valid-Until=false
 RUN apt-get install -y git xauth
 
 # Download mc binary and verify against checksum defined in this Dockerfile (not fetched from internet).
