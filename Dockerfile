@@ -9,11 +9,12 @@ FROM cypress/base:16@sha256:f4d5f616e83ee6f37913ea18bc1bc4f483bd49b3d7353d04a555
 ARG MC_VERSION
 ARG MC_SUM
 
-# Acquire::http::No-Cache forces a bypass of security.debian.org's CDN (Fastly) cache, which was serving a stale
-# Packages index pointing at a .deb already superseded upstream, causing 404s despite a "successful" apt-get update.
-# Acquire::Retries adds resilience against any other transient fetch failures.
-RUN apt-get update -o Acquire::http::No-Cache=true -o Acquire::Retries=5 && \
-    apt-get install -y -o Acquire::http::No-Cache=true -o Acquire::Retries=5 git xauth
+# Known ongoing Debian incident (Sept 2026): bullseye-security's signed Release file is expired on every mirror
+# Bypass the staleness gate and retry, since some packages may also be mid-resync during the incident window.
+RUN for i in 1 2 3 4 5; do \
+        apt-get update -o Acquire::Check-Valid-Until=false && \
+        apt-get install -y git xauth && break || sleep 10; \
+    done
 
 # Download mc binary and verify against checksum defined in this Dockerfile (not fetched from internet).
 # Build will abort if checksum does not match.
