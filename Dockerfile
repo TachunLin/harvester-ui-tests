@@ -9,12 +9,7 @@ FROM cypress/base:16@sha256:f4d5f616e83ee6f37913ea18bc1bc4f483bd49b3d7353d04a555
 ARG MC_VERSION
 ARG MC_SUM
 
-# Known ongoing Debian incident (Sept 2026): bullseye-security's signed Release file is expired on every mirror
-# Bypass the staleness gate and retry, since some packages may also be mid-resync during the incident window.
-RUN for i in 1 2 3 4 5; do \
-        apt-get update -o Acquire::Check-Valid-Until=false && \
-        apt-get install -y git xauth && break || sleep 10; \
-    done
+RUN apt-get install -y xauth
 
 # Download mc binary and verify against checksum defined in this Dockerfile (not fetched from internet).
 # Build will abort if checksum does not match.
