@@ -14,7 +14,8 @@ const table = new TablePo();
 
 const networksEnv = Cypress.env('networks') || {};
 const nic: string = networksEnv.nic;
-const vlan: number = networksEnv.vlans?.[0];
+const vlans: number[] = networksEnv.vlans || [];
+const vlan: number = vlans[0];
 
 // Names used only if this suite needs to create new resources
 const clusterNetworkName = `cn-${String(Date.now()).slice(-8)}`;
@@ -25,7 +26,8 @@ const vmNetworkNamespace = 'default';
 // Track what this suite created so after() only deletes what it made
 let createdClusterNetwork = false;
 let createdNetworkConfig = false;
-let createdVmNetwork = false;
+// All env vlans should exist as VM networks; track each one created for cleanup
+const createdVmNetworks: string[] = [];
 let resolvedClusterNetwork = '';
 
 /**
@@ -43,16 +45,20 @@ before(() => {
 
   // ── Step 1: Check cluster network list UI ──────────────────────────────────
   clusterNetworkPo.goToList();
-  cy.get('body').then($body => {
+  // "mgmt" is a built-in cluster network and always renders; wait for its group-tab
+  // so we know the grouped table has actually painted before scanning for others
+  // (goToList only waits for the XHR, not the subsequent Vue render).
+  cy.contains('.group-tab', 'Cluster Network: mgmt', { timeout: constants.timeout.maxTimeout }).should('be.visible');
+  cy.get('.group-tab').then($tabs => {
     // The list groups configs under "Cluster Network: <name>" group tabs
-    const groupTab = $body.find('.group-tab').first();
-    if (groupTab.length > 0) {
-      const match = groupTab.text().match(/Cluster Network:\s*(\S+)/);
-      if (match?.[1]) {
+    $tabs.each((_, tab) => {
+      if (resolvedClusterNetwork) return;
+      const match = Cypress.$(tab).text().match(/Cluster Network:\s*(\S+)/);
+      if (match?.[1] && match[1] !== 'mgmt') {
         resolvedClusterNetwork = match[1].trim();
         cy.log(`Found existing cluster network on UI: ${resolvedClusterNetwork}`);
       }
-    }
+    });
   });
 
   // ── Step 2: Create CN + config only if Step 1 found nothing ───────────────
@@ -62,40 +68,49 @@ before(() => {
       clusterNetworkPo.createClusterNetwork(clusterNetworkName);
       createdClusterNetwork = true;
       cy.wait(5000); // let controller reconcile NIC availability
-      clusterNetworkPo.createNetworkConfig(networkConfigName, nic);
+      // Scope the click to this new cluster network's row - the list can have
+      // multiple "Create Network Configuration" links once other CNs exist.
+      clusterNetworkPo.createNetworkConfig(networkConfigName, nic, clusterNetworkName);
       createdNetworkConfig = true;
       resolvedClusterNetwork = clusterNetworkName;
     }
   });
 
   // ── Step 3: Check VM network list UI ──────────────────────────────────────
+  // Every vlan configured in the env should exist as a VM network, not just the first.
   cy.then(() => {
     network.goToList();
     // Switch to flat list so all networks are in a single table
     table.clickFlatListBtn();
     cy.get('body').then($body => {
-      let vmNetworkReady = false;
+      const readyVlans = new Set<number>();
       $body.find('[data-testid$="-row"]').each((_, row) => {
         const cells = Cypress.$(row).find('td');
         // Column 3 = name (0-indexed: 2), Col 2 = state (idx 1), Col 8 = routeConnectivity (idx 7)
         const name = cells.eq(2).text().trim();
         const state = cells.eq(1).text().trim();
         const routeConn = cells.eq(7).text().trim();
-        if (name === vmNetworkName && state.includes('Active') && routeConn.includes('Active')) {
-          vmNetworkReady = true;
-          cy.log(`VM network ${vmNetworkName} is Active with Active route, reusing.`);
+        const match = name.match(/^vlan(\d+)$/);
+        if (match && state.includes('Active') && routeConn.includes('Active')) {
+          readyVlans.add(Number(match[1]));
         }
       });
-      if (!vmNetworkReady) {
-        cy.log(`VM network ${vmNetworkName} not found or not Active, creating on ${resolvedClusterNetwork}...`);
+
+      vlans.forEach((v) => {
+        const name = `vlan${v}`;
+        if (readyVlans.has(v)) {
+          cy.log(`VM network ${name} is Active with Active route, reusing.`);
+          return;
+        }
+        cy.log(`VM network ${name} not found or not Active, creating on ${resolvedClusterNetwork}...`);
         network.create({
-          name: vmNetworkName,
+          name,
           namespace: vmNetworkNamespace,
-          vlan: String(vlan),
+          vlan: String(v),
           clusterNetwork: resolvedClusterNetwork,
         });
-        createdVmNetwork = true;
-      }
+        createdVmNetworks.push(name);
+      });
     });
   });
 });
@@ -105,13 +120,13 @@ after(() => {
 
   // Delete in dependency order: VM network → network config → cluster network
   // Use cy.request() DELETE — reliable, session cookie from cy.login() is shared
-  if (createdVmNetwork) {
+  createdVmNetworks.forEach((name) => {
     cy.request({
       method: 'DELETE',
-      url: `/v1/harvester/k8s.cni.cncf.io.network-attachment-definitions/${vmNetworkNamespace}/${vmNetworkName}`,
+      url: `/v1/harvester/k8s.cni.cncf.io.network-attachment-definitions/${vmNetworkNamespace}/${name}`,
       failOnStatusCode: false,
-    }).then(res => cy.log(`Deleted VM network ${vmNetworkName}: ${res.status}`));
-  }
+    }).then(res => cy.log(`Deleted VM network ${name}: ${res.status}`));
+  });
   if (createdNetworkConfig) {
     cy.request({
       method: 'DELETE',

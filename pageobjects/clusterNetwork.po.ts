@@ -56,10 +56,12 @@ export default class clusterNetworkPage extends CruResource {
      * Create a network configuration under a cluster network.
      * @param name - network configuration name
      * @param nicName - NIC name to select for the uplink
+     * @param clusterNetworkName - if provided, scopes the click to that cluster network's row
+     *   (the list can have multiple "Create Network Configuration" links, one per cluster network)
      */
-    public createNetworkConfig(name: string, nicName: string) {
+    public createNetworkConfig(name: string, nicName: string, clusterNetworkName?: string) {
         this.goToList();
-        this.clickCreateNetworkConfigButton();
+        this.clickCreateNetworkConfigButton(clusterNetworkName);
         this.name().input(name);
         this.clickUplinkTab();
         this.selectNIC(nicName);
@@ -67,9 +69,18 @@ export default class clusterNetworkPage extends CruResource {
     }
 
     /**
-     * Click the "Create Network Configuration" button
+     * Click the "Create Network Configuration" button.
+     * Without a name, clicks the first one found on the page (unsafe when multiple cluster networks exist).
      */
-    public clickCreateNetworkConfigButton() {
+    public clickCreateNetworkConfigButton(clusterNetworkName?: string) {
+        if (clusterNetworkName) {
+            cy.contains('.group-tab', `Cluster Network: ${clusterNetworkName}`)
+              .parent('.group-bar')
+              .contains('a', 'Create Network Configuration')
+              .click();
+
+            return;
+        }
         cy.contains('a', 'Create Network Configuration').click();
     }
 
