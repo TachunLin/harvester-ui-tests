@@ -464,8 +464,11 @@ export class VmsPage extends CruResourcePo {
   public edit(name: string, value: ValueInterface, namespace: string = 'default') {
     this.init()
     this.goToEdit(name);
+    // Reload the page to avoid api conflicting issue
+    cy.reload();
     this.setValue(value);
-    this.update(`${namespace}/${name}`);
+    // A running VM's edit requires confirming the "Save and Restart" prompt,
+    this.save({ edit: true });
   }
 
   public delete(namespace: string, name: string, displayName?: string, { removeRootDisk, id }: { removeRootDisk?: boolean, id?: string } = { removeRootDisk: true }) {
