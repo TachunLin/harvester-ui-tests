@@ -82,6 +82,9 @@ before(() => {
     network.goToList();
     // Switch to flat list so all networks are in a single table
     table.clickFlatListBtn();
+    // goToList() only waits for the list XHR, not the Vue table's render; wait for the
+    // row count to settle so the snapshot below isn't taken against a still-rendering table.
+    table.waitForTableReady();
     cy.get('body').then($body => {
       const readyVlans = new Set<number>();
       $body.find('[data-testid$="-row"]').each((_, row) => {

@@ -1,3 +1,7 @@
+import { Constants } from "@/constants/constants";
+
+const constants = new Constants();
+
 export default class TablePo {
   clickFlatListBtn() {
     cy.get('.btn-group button .icon-list-flat').parent().click();
@@ -5,6 +9,33 @@ export default class TablePo {
 
   clickFolderBtn() {
     cy.get('.btn-group button .icon-folder').parent().click();
+  }
+
+  /**
+   * Vue tables render rows asynchronously after the list request resolves, so a single
+   * DOM snapshot taken right afterwards can race a still-rendering table - including the
+   * genuinely-empty case, which looks identical to "not rendered yet". Poll until the row
+   * count is stable across two checks (or the timeout elapses) before scanning the table.
+   */
+  waitForTableReady(rowSelector = '[data-testid$="-row"]', timeout: number = constants.timeout.timeout) {
+    const deadline = Date.now() + timeout;
+    let lastCount = -1;
+
+    const poll = () => {
+      cy.get('body').then(($body) => {
+        const count = $body.find(rowSelector).length;
+
+        if (count === lastCount || Date.now() > deadline) {
+          return;
+        }
+
+        lastCount = count;
+        cy.wait(300);
+        poll();
+      });
+    };
+
+    poll();
   }
   
   /**
