@@ -47,7 +47,8 @@ export default class CruResourcePo extends PagePo {
   }
 
   clickTab(contains: string) {
-    const path = `.resource-container .side-tabs .tab#${contains}`
+    // the UI moved the stable tab identifier from `id` to `data-testid`
+    const path = `.resource-container .side-tabs .tab[data-testid="${contains}"]`
     cy.get(path).click()
   }
 

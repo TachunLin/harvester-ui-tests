@@ -11,7 +11,7 @@ describe('Create a new VM and add Enable USB tablet option', () => {
     cy.login();
   });
 
-  it('Create a new VM with USB tablet checked', () => {
+  it.only('Create a new VM with USB tablet checked', () => {
     const VM_NAME = generateName('test-usb-tablet')
     const NAMESPACE = 'default'
 
@@ -33,7 +33,7 @@ describe('Create a new VM and add Enable USB tablet option', () => {
 
     vms.goToConfigDetail(VM_NAME);
 
-    cy.get('.tab#advanced').click()
+    vms.clickTab('advanced')
     vms.usbTablet().expectChecked()
 
     cy.intercept('GET', `/apis/kubevirt.io/v1/namespaces/*/virtualmachines/${VM_NAME}`).as('vmDetail');
@@ -62,7 +62,7 @@ describe("Create a new VM and add Install guest agent option", () => {
     cy.login();
   });
 
-  it('Create a new VM with Install guest agent checked', () => {
+  it.only('Create a new VM with Install guest agent checked', () => {
     const VM_NAME = generateName('test-guest-agent')
     const NAMESPACE = 'default'
 
@@ -84,7 +84,7 @@ describe("Create a new VM and add Install guest agent option", () => {
 
     vms.goToConfigDetail(VM_NAME);
 
-    cy.get('.tab#advanced').click()
+    vms.clickTab('advanced')
     vms.guestAgent().expectChecked()
 
     vms.deleteFromStore(`${NAMESPACE}/${VM_NAME}`)
@@ -96,7 +96,7 @@ describe("Verify Booting in EFI mode checkbox", () => {
     cy.login();
   });
 
-  it('Create a new VM with Booting in EFI mode checked', () => {
+  it.only('Create a new VM with Booting in EFI mode checked', () => {
     const VM_NAME = generateName('test-efi')
     const NAMESPACE = 'default'
 
@@ -122,7 +122,7 @@ describe("Verify Booting in EFI mode checkbox", () => {
 
     vms.goToConfigDetail(VM_NAME);
 
-    cy.get('.tab#advanced').click()
+    vms.clickTab('advanced')
     vms.efiEnabled().expectChecked()
 
     vms.deleteFromStore(`${NAMESPACE}/${VM_NAME}`)

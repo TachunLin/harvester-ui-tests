@@ -28,8 +28,6 @@ export default class StoragePage extends CruResourcePo {
     });
   }
 
-  private customizeTab = '.tab#customize';
-
   public setValue(value: ValueInterface) {
     this.name().input(value?.name)
     this.description().input(value?.description)
@@ -37,7 +35,7 @@ export default class StoragePage extends CruResourcePo {
     this.staleReplicaTimeout().input(value?.staleReplicaTimeout)
     this.migratable().input(value?.migratable)
 
-    cy.get(this.customizeTab).click()
+    this.clickTab('customize')
     this.reclaimPolicy().input(value?.reclaimPolicy)
     this.allowVolumeExpansion().input(value?.allowVolumeExpansion)
     this.volumeBindingMode().input(value?.volumeBindingMode)

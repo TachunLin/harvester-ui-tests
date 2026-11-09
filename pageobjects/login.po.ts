@@ -59,7 +59,7 @@ export class LoginPage {
     }
 
     public Message({ iserror = true }: { iserror: boolean }): CypressChainable {
-        return cy.get(`main .login-messages ${iserror ? ".error" : ".text-success"}`)
+        return cy.get(`main .login-messages ${iserror ? ".error" : ".banner.success"}`)
     }
 
     /**
