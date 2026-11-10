@@ -75,30 +75,7 @@ export class Navbar {
    * @param exact Exact match of text
    */
   clickMenuNav(navName: string, matchUrl: string, listPageHeaderText: string, parentNavs: Array<string> = [], exact: boolean = true) {
-    function recursionClickNav(parentNav: string, idx: number) {
-      return cy.contains(new RegExp("^" + parentNav + "$")).click().parentsUntil('.has-children').next().within(($el) => {
-        if (parentNavs.length === idx + 1) {
-          cy.get('li a').contains(new RegExp("^" + navName + "$")).click();
-
-          cy.location().should(loc => {
-            const deleteHash = loc.href.replace(loc.hash, '');
-            expect(deleteHash).to.eq(`${new Navbar().basePath()}/${matchUrl}`)
-          })
-
-          cy.wait(2000); // need to wait here, because when you click on the secondary menu, it will automatically jump to the first position in the secondary menu
-          cy.get('a').parentsUntil('body').find('main .outlet header h1').should('be.visible').invoke('text').then((_text) => {
-            if (exact) {
-              expect(_text.trim()).eq(listPageHeaderText);
-            } else {
-              expect(_text.trim()).include(listPageHeaderText);
-            }
-            cy.log(`${navName} Nav go to the correct page and display it`);
-          });
-        } else {
-          cy.get('div h6').contains(new RegExp("^" + parentNavs[idx + 1] + "$")).click();
-        }
-      })
-    }
+    const groupHeader = (name: string) => `.accordion-item > .header[aria-label="${name}"]`;
 
     if (parentNavs.length === 0) {
       cy.get("nav a").contains(new RegExp("^" + navName + "$")).click();
@@ -113,11 +90,47 @@ export class Navbar {
         cy.log(`${navName} Nav go to the correct page and display it`)
       });
     } else {
-      cy.get("nav .accordion.has-children").within(($el) => {
-        parentNavs.map((parentNav, idx) => {
-          recursionClickNav(parentNav, idx);
-        })
+      // The menu groups can re-collapse asynchronously after a navigation, so each step re-reads the
+      // current state: expand the first collapsed group, or click the leaf once the whole path is expanded
+      const clickLeaf = (attempt: number) => {
+        cy.get('nav').then(($nav) => {
+          const collapsed = parentNavs.find((name) => $nav.find(groupHeader(name)).attr('aria-expanded') !== 'true');
+
+          if (collapsed) {
+            $nav.find(groupHeader(collapsed)).siblings('.toggle-accordion')[0]?.click();
+          } else {
+            const $leaf = $nav.find(groupHeader(parentNavs[parentNavs.length - 1])).closest('.accordion').find('ul.body a').filter((_, el) => {
+              const text = (el.textContent || '').trim();
+              return text.startsWith(navName) && /^\d*$/.test(text.slice(navName.length).trim());
+            });
+
+            if ($leaf.length) {
+              $leaf[0].click();
+              return;
+            }
+          }
+
+          expect(attempt, `menu path "${parentNavs.join(' > ')} > ${navName}" is displayed`).to.be.lessThan(20);
+          cy.wait(300); // backoff to let the menu finish re-rendering
+          clickLeaf(attempt + 1);
+        });
+      };
+      clickLeaf(0);
+
+      cy.location().should(loc => {
+        const deleteHash = loc.href.replace(loc.hash, '');
+        expect(deleteHash).to.eq(`${this.basePath()}/${matchUrl}`)
       })
+
+      cy.wait(2000); // when clicking a secondary menu item, the menu may jump to the first item
+      cy.get('main .outlet header h1').should('be.visible').invoke('text').then((_text) => {
+        if (exact) {
+          expect(_text.trim()).eq(listPageHeaderText);
+        } else {
+          expect(_text.trim()).include(listPageHeaderText);
+        }
+        cy.log(`${navName} Nav go to the correct page and display it`);
+      });
     }
   }
 

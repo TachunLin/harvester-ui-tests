@@ -107,7 +107,7 @@ export class VmsPage extends CruResourcePo {
 
     this.clickTab('nodeScheduling');
 
-    cy.get('.tab-container section#nodeScheduling').within(() => {
+    cy.get('.tab-container section[id$="nodeScheduling"]').within(() => {
       const scheduling = new RadioButtonPo('.radio-group');
 
       scheduling.input(map[type]);
@@ -550,13 +550,13 @@ export class VmsPage extends CruResourcePo {
   }
 
   userData() {
-    const selector = cy.contains('User Data').parent().find('.CodeMirror')
+    const selector = cy.contains('User Data').parent().find('.cm-editor')
 
     return new YamlEditorPo(selector)
   }
 
   networkData() {
-    const selector = cy.contains('Network Data').parent().find('.CodeMirror')
+    const selector = cy.contains('Network Data').parent().find('.cm-editor')
 
     return new YamlEditorPo(selector)
   }

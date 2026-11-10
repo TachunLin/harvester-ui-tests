@@ -20,7 +20,7 @@ interface ValueInterface {
 }
 
 export default class NetworkPage extends CruResourcePo {
-  private networkTab = '.tab#layer3Network';
+  private networkTab = '.tab[data-testid="layer3Network"]';
 
   constructor() {
     super({

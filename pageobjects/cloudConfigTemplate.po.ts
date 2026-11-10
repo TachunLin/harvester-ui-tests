@@ -30,7 +30,7 @@ export default class extends CruResourcePo {
   }
 
   data() {
-    return new YamlEditorPo('.CodeMirror')
+    return new YamlEditorPo('.cm-editor')
   }
 
   public setValue(value: ValueInterface) {
