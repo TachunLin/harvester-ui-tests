@@ -321,16 +321,21 @@ export class rancherPage {
         versionSelect.select({ option: version, selector: '.vs__dropdown-menu' });
         // Click the Install button to install the Harvester extension
         cy.get(this.install_harvester_extensionButton).click();
-        // The reload banner may not show up, click it if present, otherwise reload the page directly
-        cy.wait(10000);
-        cy.get('body').then($body => {
-            if ($body.find(this.extension_reloadButton).length > 0) {
-                cy.get(this.extension_reloadButton).click();
-            } else {
-                cy.log('Reload banner not found, reloading the page');
-                cy.reload();
-            }
-        });
+        // Check every 5 seconds (up to 180 seconds) for the reload banner, otherwise reload the page directly
+        const checkReloadButton = (remainingChecks: number) => {
+            cy.get('body').then($body => {
+                if ($body.find(this.extension_reloadButton).length > 0) {
+                    cy.get(this.extension_reloadButton).click();
+                } else if (remainingChecks > 0) {
+                    cy.wait(5000);
+                    checkReloadButton(remainingChecks - 1);
+                } else {
+                    cy.log('Reload banner not found after 180 seconds, reloading the page');
+                    cy.reload();
+                }
+            });
+        };
+        checkReloadButton(36);
 
         if (isNewUI) {
             // Switch to Installed tab
