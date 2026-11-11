@@ -9,10 +9,6 @@ export default class YamlEditorPo extends ComponentPo {
           .first()
           .click()
           .type('{selectall}{backspace}')
-
-      this.self()
-          .find('.cm-content')
-          .first()
           .type(string, {
             parseSpecialCharSequences: false,
           })

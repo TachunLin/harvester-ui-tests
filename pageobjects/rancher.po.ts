@@ -305,6 +305,8 @@ export class rancherPage {
         if (isNewUI) {
             // Rancher v2.13+ uses dropdown menu for install
             cy.log(`Using Rancher v2.13+ UI flow (detected: ${rancherVersion})`);
+            cy.wait(15000); // Wait for 15 second to ensure the repository is ready
+            cy.reload();
             // Click the 3-dot menu button on the Harvester extension card
             cy.get(this.extension_card_menu_button).click();
             // Click the Install option from the dropdown menu

@@ -175,7 +175,7 @@ describe('Create VM with vlan network', () => {
       name: VM_NAME,
       cpu: '1',
       memory: '1',
-      image: Cypress._.toLower(largeImageEnv.name),
+      image: largeImageEnv.name,
       networks: [{ network: vmNetworkName }],
       namespace: vmNetworkNamespace,
     });
@@ -219,7 +219,7 @@ describe('Add a vlan network to existing VM', () => {
       name: VM_NAME,
       cpu: '1',
       memory: '1',
-      image: Cypress._.toLower(largeImageEnv.name),
+      image: largeImageEnv.name,
       networks: [{ network: 'management Network' }],
       namespace: vmNetworkNamespace,
     });
