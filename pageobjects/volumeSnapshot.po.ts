@@ -16,7 +16,7 @@ export default class VolumeSnapshot extends CruResourcePo {
 
   restoreNew(name: string, newVolumeName: string) {
     this.clickAction(name, 'Restore');
-    new LabeledInputPo('.labeled-input', `:contains("New Volume Name")`).input(newVolumeName);
+    new LabeledInputPo('.modal-container .labeled-input', `:contains("New Volume Name")`).input(newVolumeName);
     cy.get('.modal-container,.card-wrap .card-actions').contains('Create').click();
   }
 }
