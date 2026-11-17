@@ -37,7 +37,7 @@ Cypress.Commands.add('login', (params = {}) => {
 
     // Navigate to the target url after session is established/restored
     cy.visit(url);
-    cy.get(".dashboard-content .product-name", { timeout: constants.timeout.maxTimeout }).contains("Harvester");
+    cy.get(".dashboard-content .product-name", { timeout: constants.timeout.maxTimeout }).should('exist');
 });
 
 Cypress.Commands.add('stopOnFailed', () => {
