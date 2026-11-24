@@ -10,6 +10,12 @@ beforeEach(() => {
     cy.login({url: PageUrl.clusterNetwork});
 });
 
+after(() => {
+    cy.login();
+    clusterNetwork.deleteFromStore('nc', 'network.harvesterhci.io.vlanconfig');
+    clusterNetwork.deleteFromStore('cn');
+});
+
 /**
  * 1. Login
  * 2. Navigate to the Networks -> Cluster Network Configuration page
@@ -36,14 +42,19 @@ describe('Cluster Network Configuration', () => {
    * 4. Click the `Create Network Config` button
    * 5. Input the Name `nc` of the Network Config
    * 6. Click the Uplink tab
-   * 7. Click to select the `ens6 (Up)` from the NICs dropdown list
+   * 7. Select the NIC from vlans[0].nic in cypress.env.json (e.g. "eno50")
    * 8. Click the create button
    * 9. Check the network config named `nc` exists under the `cn` cluster network panel 
    */
   it('Create network configuration', () => {
     onlyOn(clusterNetworkCreated);
 
-    clusterNetwork.createNetworkConfig('nc', 'ens6 (Up)');
+    // Read the NIC name from env vlans[0] instead of hardcoding it.
+    // selectNIC uses partial text match so it works regardless of the
+    // live status suffix the UI appends (e.g. "eno50 (Up)").
+    const nic = Cypress.env('networks')?.nic;
+
+    clusterNetwork.createNetworkConfig('nc', nic);
 
     clusterNetwork.checkNetworkConfig('nc', 'cn');
   });

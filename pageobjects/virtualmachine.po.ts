@@ -596,7 +596,7 @@ export class VmsPage extends CruResourcePo {
             password,
             host: address,
             remoteCommand,
-          })
+          }, { timeout })
           .then((result: any) => {
             cy.log(`SSH result: ${JSON.stringify(result)}`);
 

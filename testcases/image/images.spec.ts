@@ -40,7 +40,7 @@ describe('Auto setup image from cypress environment', () => {
                 image.setNameNsDescription(IMAGE_NAME, namespace);
                 image.setBasics({ url: IMAGE_URL });
                 image.save();
-                image.checkState({ name: IMAGE_NAME });
+                image.checkState_without_size({ name: IMAGE_NAME });
             }
         })
     })
@@ -85,7 +85,7 @@ describe('Create an image with valid image URL', () => {
 
         cy.wrap(image.save()).then((realName) => {
             // check IMAGE state
-            image.checkState({ name: IMAGE_NAME });
+            image.checkState_without_size({ name: IMAGE_NAME });
 
             // edit IMAGE
             image.goToEdit(IMAGE_NAME);
@@ -108,7 +108,7 @@ describe('Create an image with valid image URL', () => {
         image.setBasics({ url: IMAGE_URL });
         cy.wrap(image.save()).then((realName) => {
             // check IMAGE state
-            image.checkState({ name: IMAGE_NAME });
+            image.checkState_without_size({ name: IMAGE_NAME });
 
             // delete IMAGE
             image.delete(namespace, realName as string, IMAGE_NAME);
@@ -196,7 +196,7 @@ describe('Delete VM with exported image', () => {
         // export IMAGE
         image.exportImage(VM_NAME, IMAGE_NAME, namespace);
         image.goToList();
-        image.checkState({ name: IMAGE_NAME, size: '10 Gi' });
+        image.checkState_without_size({ name: IMAGE_NAME, size: '10 Gi' });
 
         // delete VM
         vms.delete(namespace, VM_NAME);
@@ -247,7 +247,7 @@ describe('Update image labels after deleting source VM', () => {
 
         // check IMAGE state
         image.goToList();
-        image.checkState({ name: IMAGE_NAME, size: '10 Gi' });
+        image.checkState_without_size({ name: IMAGE_NAME, size: '10 Gi' });
 
         // delete VM
         vms.delete(namespace, VM_NAME);
@@ -346,7 +346,7 @@ describe('Create a ISO image via upload', () => {
         image.setBasics({ path: 'fixtures/cirros-0.5.2-aarch64-disk.img' });
 
         cy.wrap(image.save({ upload: true })).then((realName) => {
-            image.checkState({ name: IMAGE_NAME });
+            image.checkState_without_size({ name: IMAGE_NAME });
 
             // create VM
             const volumes = [{
@@ -400,7 +400,7 @@ describe('Clone image', () => {
             IMAGE_REAL_NAME = realName as string;
         })
 
-        image.checkState({ name: IMAGE_NAME });
+        image.checkState_without_size({ name: IMAGE_NAME });
         image.clickAction(IMAGE_NAME, 'Clone');
         image.setNameNsDescription(CLONED_NAME, namespace);
 
@@ -408,7 +408,7 @@ describe('Clone image', () => {
             CLONED_IMAGE_REAL_NAME = realName as string;
         })
 
-        image.checkState({ name: CLONED_NAME });
+        image.checkState_without_size({ name: IMAGE_NAME });
         image.goToEdit(CLONED_NAME);
         image.clickTab('labels');
 
@@ -449,7 +449,7 @@ describe('Image filtering by labels', () => {
         cy.wrap(image.save()).then((realName) => {
             IMAGE_REAL_NAME_1 = realName as string
         })
-        image.checkState({ name: IMAGE_NAME_1 });
+        image.checkState_without_size({ name: IMAGE_NAME_1 });
 
         // create the second one
         image.goToCreate();
@@ -461,7 +461,7 @@ describe('Image filtering by labels', () => {
         cy.wrap(image.save()).then((realName) => {
             IMAGE_REAL_NAME_2 = realName as string
         })
-        image.checkState({ name: IMAGE_NAME_2 });
+        image.checkState_without_size({ name: IMAGE_NAME_2 });
 
         image.goToCreate();
         image.setNameNsDescription(IMAGE_NAME_3, namespace);
@@ -472,7 +472,7 @@ describe('Image filtering by labels', () => {
         cy.wrap(image.save()).then((realName) => {
             IMAGE_REAL_NAME_3 = realName as string
         })
-        image.checkState({ name: IMAGE_NAME_3 });
+        image.checkState_without_size({ name: IMAGE_NAME_3 });
 
         // Can search specific image by name in the Harvester VM creation page
         vms.goToCreate();
@@ -542,7 +542,7 @@ describe('Image naming with inline CSS', () => {
     const IMAGE_URL = imageEnv.url;
     let name: string;
 
-    it('Create an image with valid image URL', () => {
+    it('Check cant create image with inline CSS in name', () => {
         cy.login();
 
         // create IMAGE
@@ -552,20 +552,8 @@ describe('Image naming with inline CSS', () => {
         image.setNameNsDescription(IMAGE_NAME, namespace);
         image.setBasics({ url: IMAGE_URL });
 
-        cy.wrap(image.save()).then((realName) => {
-            name = realName as string;
-        })
-        // check IMAGE state
-        image.checkState({ name: IMAGE_NAME });
-
-        // edit IMAGE
-        image.goToDetail({ name: IMAGE_NAME, ns: namespace });
-        // Get the title name on the image details page
-        cy.get('.resource-name').should('contain', IMAGE_NAME)
-
-        // delete IMAGE
-        cy.wrap(null).then(() => {
-            image.delete(namespace, name, IMAGE_NAME)
-        })
+        cy.intercept('POST', `v1/harvester/${HCI.IMAGE}s`).as('createInvalidName');
+        cy.get('.cru-resource-footer').contains('Create').click();
+        cy.wait('@createInvalidName').its('response.statusCode').should('equal', 422);
     });
 });

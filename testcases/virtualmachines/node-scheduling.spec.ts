@@ -1,19 +1,34 @@
 import { VmsPage } from "@/pageobjects/virtualmachine.po";
 
-import { generateName, host as hostUtil } from '@/utils/utils';
+import { generateName } from '@/utils/utils';
 import { Constants } from "@/constants/constants";
 
 const vmPO = new VmsPage();
 const constants = new Constants();
 
+let hostNodes: Array<{ name: string }> = [];
+
+before(() => {
+  cy.login();
+  cy.request({
+    method: 'GET',
+    url: '/v1/harvester/nodes',
+    headers: { Accept: 'application/json' },
+  }).then((resp: Cypress.Response<any>) => {
+    const nodeList: any[] = resp.body?.data ?? resp.body?.items ?? [];
+    hostNodes = nodeList.map((node: any) => ({ name: node.id ?? node.metadata?.name }));
+  });
+});
+
 describe('Stop VM Negative', () => {
-  it('Stop VM Negative', () => {
+  it('Stop VM Negative', function() {
+    if (hostNodes.length < 2) return this.skip();
+
     cy.login();
 
     const VM_NAME = generateName('test-vm-scheduling');
     const namespace = 'default'
-    const firstNode = hostUtil.list()[0];
-    const nodeName = firstNode?.name || firstNode?.customName
+    const nodeName = hostNodes[0].name;
     const imageEnv = Cypress.env('image');
 
     const volume = [{

@@ -1,10 +1,22 @@
 import { VmsPage } from "@/pageobjects/virtualmachine.po";
 import { HostsPage } from "@/pageobjects/hosts.po";
-import { host as hostsUtil } from '@/utils/utils';
-import { Node } from '@/models/host'
 
 const vms = new VmsPage();
 const hosts = new HostsPage();
+
+let hostNames: string[] = [];
+
+before(() => {
+  cy.login();
+  cy.request({
+    method: 'GET',
+    url: '/v1/harvester/nodes',
+    headers: { Accept: 'application/json' },
+  }).then((resp: Cypress.Response<any>) => {
+    const nodeList: any[] = resp.body?.data ?? resp.body?.items ?? [];
+    hostNames = nodeList.map((node: any) => node.id ?? node.metadata?.name);
+  });
+});
 
 /**
  * https://harvester.github.io/tests/manual/virtual-machines/vm_schedule_on_node/
@@ -14,10 +26,8 @@ describe('VM scheduling on Specific node', () => {
     cy.login();
   });
 
-  it('Schedule VM on the Node which is Enable Maintenance Mode', () => {
-    const hostList = hostsUtil.list();
-
-    const hostNames: string[] = hostList.map((node: Node) => node.name || node.customName);
+  it('Schedule VM on the Node which is Enable Maintenance Mode', function() {
+    if (hostNames.length < 2) return this.skip();
 
     const maintenanceNodeName = hostNames[0]
     const filterMaintenanceNodeNames = hostNames.filter(name => name !== maintenanceNodeName);

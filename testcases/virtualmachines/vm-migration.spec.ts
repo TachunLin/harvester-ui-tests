@@ -15,6 +15,43 @@ const namespaces = new NamespacePage();
 const imagePO = new ImagePage();
 const vmBackups = new VMBackup();
 
+// openSUSE Leap 16.1+ images no longer ship the `opensuse` user, so declare it explicitly.
+// Flow style with no leading spaces: the CodeMirror editor auto-indents typed newlines, which breaks block-style YAML.
+const MIGRATION_USERDATA = `#cloud-config
+password: password
+chpasswd: { expire: False }
+ssh_pwauth: True
+users: [default, {name: opensuse, lock_passwd: false, plain_text_passwd: password, shell: /bin/bash, sudo: ALL=(ALL) NOPASSWD:ALL}]
+`
+
+const vmNetworkName = `vlan${(Cypress.env('networks') || {})?.vlans?.[0]}`;
+
+let clusterNodeCount = 0;
+// Live cluster node names, used to pick a real migration target instead of a static env fixture
+let liveNodeNames: string[] = [];
+
+before(function() {
+  cy.login();
+  cy.request({
+    method: 'GET',
+    url: '/v1/harvester/nodes',
+    headers: { Accept: 'application/json' },
+  }).then((resp) => {
+    const nodeList: any[] = resp.body?.data ?? resp.body?.items ?? [];
+    clusterNodeCount = nodeList.length;
+    liveNodeNames = nodeList.map((node: any) => node.id ?? node.metadata?.name);
+    if (clusterNodeCount >= 2) {
+      // Ensure the largeImage is available before migration tests run
+      vms.init();
+    }
+  });
+});
+
+beforeEach(function() {
+  if (clusterNodeCount < 2) this.skip();
+});
+
+
 /**
  * @module testcases/virtualmachines/vm-migration.spec.ts
  * @description This module contains test cases for virtual machine migration and related functionalities.
@@ -41,13 +78,8 @@ describe('VM Live Migration', () => {
   it('Migrate VM with cloud init data', () => {
     const VM_NAME = generateName('test-vm-migrate');
     const NAMESPACE = 'default'
-    const NETWORK = 'vlan1'
     const largeImageEnv = Cypress.env('largeImage');
-    const USERDATA = `#cloud-config
-password: password
-chpasswd: { expire: False }
-sshpwauth: True
-`
+    const USERDATA = MIGRATION_USERDATA
 
     const value = {
       name: VM_NAME,
@@ -55,7 +87,7 @@ sshpwauth: True
       memory: '2',
       image: largeImageEnv.name,
       networks: [{
-        network: NETWORK,
+        network: vmNetworkName,
       }],
       guestAgent: true,
       namespace: NAMESPACE,
@@ -68,8 +100,8 @@ sshpwauth: True
 
     // Check VM is running
     vms.censorInColumn(VM_NAME, 3, NAMESPACE, 4, 'Running', 2, { timeout: constants.timeout.maxTimeout, nameSelector: '.name-console a' });
-    // Wait for IP address show in table
-    vms.censorInColumn(VM_NAME, 3, NAMESPACE, 4, '.', 7, { timeout: constants.timeout.maxTimeout, nameSelector: '.name-console a' });
+    // Wait for IP address show in table (guest agent can report it well after the VM is Running)
+    vms.censorInColumn(VM_NAME, 3, NAMESPACE, 4, '.', 7, { timeout: constants.timeout.provisionTimeout, nameSelector: '.name-console a' });
 
     // Check VM display IP address and ssh to the VM
     cy.contains('tr', VM_NAME)
@@ -95,12 +127,8 @@ sshpwauth: True
         const originalNode = nodeName.trim();
         cy.log(`VM is currently running on node: ${originalNode}`);
 
-        // Find the first node that doesn't match the original node
-        const targetNode = hostUtil.list().find(host => {
-          const hostName = host.name || host.customName;
-          return hostName !== originalNode;
-        });
-        const targetNodeName = targetNode?.name || targetNode?.customName || '';
+        // Find the first live node that doesn't match the original node
+        const targetNodeName = liveNodeNames.find(name => name !== originalNode) || '';
 
         // Add null check before using targetNodeName
         if (!targetNodeName) {
@@ -173,14 +201,9 @@ sshpwauth: True
   it('Migrate VM with one backup', () => {
     const VM_NAME = generateName('test-vm-migrate-backup');
     const NAMESPACE = 'default'
-    const NETWORK = 'vlan1'
     const largeImageEnv = Cypress.env('largeImage');
     const BACKUP_NAME = `backup-${VM_NAME}`;
-    const USERDATA = `#cloud-config
-password: password
-chpasswd: { expire: False }
-sshpwauth: True
-`
+    const USERDATA = MIGRATION_USERDATA
 
     const value = {
       name: VM_NAME,
@@ -188,7 +211,7 @@ sshpwauth: True
       memory: '2',
       image: largeImageEnv.name,
       networks: [{
-        network: NETWORK,
+        network: vmNetworkName,
       }],
       guestAgent: true,
       namespace: NAMESPACE,
@@ -201,8 +224,8 @@ sshpwauth: True
 
     // Check VM is running
     vms.censorInColumn(VM_NAME, 3, NAMESPACE, 4, 'Running', 2, { timeout: constants.timeout.maxTimeout, nameSelector: '.name-console a' });
-    // Wait for IP address show in table
-    vms.censorInColumn(VM_NAME, 3, NAMESPACE, 4, '.', 7, { timeout: constants.timeout.maxTimeout, nameSelector: '.name-console a' });
+    // Wait for IP address show in table (guest agent can report it well after the VM is Running)
+    vms.censorInColumn(VM_NAME, 3, NAMESPACE, 4, '.', 7, { timeout: constants.timeout.provisionTimeout, nameSelector: '.name-console a' });
 
     // Check VM display IP address and ssh to the VM to create a test file
     cy.contains('tr', VM_NAME)
@@ -238,12 +261,8 @@ sshpwauth: True
         const originalNode = nodeName.trim();
         cy.log(`VM is currently running on node: ${originalNode}`);
 
-        // Find the first node that doesn't match the original node
-        const targetNode = hostUtil.list().find(host => {
-          const hostName = host.name || host.customName;
-          return hostName !== originalNode;
-        });
-        const targetNodeName = targetNode?.name || targetNode?.customName || '';
+        // Find the first live node that doesn't match the original node
+        const targetNodeName = liveNodeNames.find(name => name !== originalNode) || '';
 
         // Add null check before using targetNodeName
         if (!targetNodeName) {
@@ -323,14 +342,9 @@ sshpwauth: True
   it('Migrate VM has multiple volumes', () => {
     const VM_NAME = generateName('test-vm-migrate-volumes');
     const NAMESPACE = 'default'
-    const NETWORK = 'vlan1'
     const VOLUME_NAME = generateName('migration-vol');
     const largeImageEnv = Cypress.env('largeImage');
-    const USERDATA = `#cloud-config
-password: password
-chpasswd: { expire: False }
-sshpwauth: True
-`
+    const USERDATA = MIGRATION_USERDATA
 
     // Create a new volume
     volumePO.goToCreate();
@@ -346,7 +360,7 @@ sshpwauth: True
       memory: '2',
       image: largeImageEnv.name,
       networks: [{
-        network: NETWORK,
+        network: vmNetworkName,
       }],
       guestAgent: true,
       namespace: NAMESPACE,
@@ -412,12 +426,8 @@ sshpwauth: True
         const originalNode = nodeName.trim();
         cy.log(`VM is currently running on node: ${originalNode}`);
 
-        // Find the first node that doesn't match the original node
-        const targetNode = hostUtil.list().find(host => {
-          const hostName = host.name || host.customName;
-          return hostName !== originalNode;
-        });
-        const targetNodeName = targetNode?.name || targetNode?.customName || '';
+        // Find the first live node that doesn't match the original node
+        const targetNodeName = liveNodeNames.find(name => name !== originalNode) || '';
 
         // Add null check before using targetNodeName
         if (!targetNodeName) {

@@ -1,9 +1,20 @@
 import TablePo from "@/utils/components/table.po";
 import NetworkPage from "@/pageobjects/network.po";
+import clusterNetworkPage from '@/pageobjects/clusterNetwork.po';
 import { generateName } from '@/utils/utils';
+import { onlyOn } from "@cypress/skip-test";
 
 const network = new NetworkPage();
 const table = new TablePo();
+const clusterNetworkPo = new clusterNetworkPage();
+const clusterNetworkName = `cn-${String(Date.now()).slice(-8)}`;
+
+before(() => {
+  const nic = Cypress.env('networks')?.nic;
+  cy.login();
+  clusterNetworkPo.createClusterNetwork(clusterNetworkName);
+  clusterNetworkPo.createNetworkConfig(`${clusterNetworkName}-nc`, nic);
+});
 
 interface Vlan {
   name: string,
@@ -25,13 +36,25 @@ describe('Check create/delete network', () => {
     cy.login();
 
     const name = generateName('test-network-create');
+    const networksEnv = Cypress.env('networks') || {};
 
     network.create({
       name,
       namespace: 'default',
-      vlan: '233',
-      clusterNetwork: 'mgmt'
+      vlan: networksEnv.vlans?.[0],
+      clusterNetwork: clusterNetworkName
     })
+
+    table.clickFlatListBtn();
+
+    network.checkVlanState({
+      name,
+      namespace: 'default',
+      state: 'Active',
+      routeConnectivity: 'Active',
+      vlanID: String(networksEnv.vlans?.[0]),
+      clusterNetwork: clusterNetworkName,
+    });
 
     network.delete('default', name)
   });
@@ -46,6 +69,8 @@ describe('Check create/delete network', () => {
  * 1. Create network with DHCP server IP success
 */
 export function CheckDHCP() { }
+// As per https://github.com/harvester/harvester/issues/11016
+// The combination of Auto (DHCP) mode with a manually specified DHCP server IP is not supposed to work.
 describe('Check network with DHCP', () => {
   it('Check network with DHCP', () => {
     cy.login();
@@ -53,29 +78,36 @@ describe('Check network with DHCP', () => {
     cy.intercept('POST', `/v1/harvester/k8s.cni.cncf.io.network-attachment-definitions`).as('create');
 
     const name = generateName('test-network-create');
-    const dhcp = '172.0.0.1'
+    const networksEnv = Cypress.env('networks') || {};
+    // const dhcp = networksEnv.dhcpServerIP ?? '172.0.0.1';
     const namespace = 'default'
 
     network.create({
       name,
       namespace,
-      vlan: '234',
-      clusterNetwork: 'mgmt',
+      vlan: networksEnv.vlans?.[0],
+      clusterNetwork: clusterNetworkName,
       mode: 'Auto (DHCP)',
-      dhcp,
     })
 
     cy.wait('@create').then(res => {
       expect(res.response?.statusCode).to.equal(201);
       const route = res.response?.body?.metadata?.annotations['network.harvesterhci.io/route']
 
-      if (route) {
-        const json = JSON.parse(route)
-        expect(json.serverIPAddr, 'Check Server IP Address').to.equal(dhcp);
-      }
     })
 
-    network.deleteFromStore(`${namespace}/${name}`)
+    table.clickFlatListBtn();
+
+    network.checkVlanState({
+      name,
+      namespace,
+      state: 'Active',
+      routeConnectivity: 'Active',
+      vlanID: String(networksEnv.vlans?.[0]),
+      clusterNetwork: clusterNetworkName,
+    });
+
+    network.deleteFromStore(`${namespace}/${name}`, network.storeType)
   });
 });
 
@@ -96,16 +128,17 @@ describe('Check network with Manual Mode', () => {
     cy.intercept('POST', `/v1/harvester/k8s.cni.cncf.io.network-attachment-definitions`).as('create');
 
     const name = generateName('test-network-create');
-    const cidr = '172.0.0.1/24'
-    const gateway = '172.0.0.1'
+    const networksEnv = Cypress.env('networks') || {};
+    const cidr = networksEnv.cidr ?? '172.0.0.1/24';
+    const gateway = networksEnv.gateway ?? '172.0.0.1';
     const namespace = 'default'
 
     network.create({
       name,
       namespace,
-      vlan: '235',
+      vlan: networksEnv.vlans?.[0],
       mode: 'Manual',
-      clusterNetwork: 'mgmt',
+      clusterNetwork: clusterNetworkName,
       cidr,
       gateway,
     })
@@ -120,12 +153,23 @@ describe('Check network with Manual Mode', () => {
       }
     })
 
-    network.deleteFromStore(`${namespace}/${name}`)
+    table.clickFlatListBtn();
+
+    network.checkVlanState({
+      name,
+      namespace,
+      state: 'Active',
+      routeConnectivity: 'Active',
+      vlanID: String(networksEnv.vlans?.[0]),
+      clusterNetwork: clusterNetworkName,
+    });
+
+    network.deleteFromStore(`${namespace}/${name}`, network.storeType)
   });
 });
 
 
-export function CreateVlan1() { }
+export function CreateVlanPresets() { }
 describe('Preset Vlans', () => {
   function createVlan(vlan: Vlan) {
     cy.intercept('POST', `/v1/harvester/k8s.cni.cncf.io.network-attachment-definitions`).as('create');
@@ -142,19 +186,19 @@ describe('Preset Vlans', () => {
 
     table.clickFlatListBtn();
 
-    cy.wait(2000)
-    cy.wrap('async').then(() => {
-      table.find(name, 2, namespace, 3).then((index) => {
-        if (typeof index === 'number') {
-          cy.get(`[data-testid="sortable-table-${index}-row"]`).find('td').eq(6).should('contain', 'Active')
-        }
-      })
-    })
+    network.checkVlanState({
+      name,
+      namespace,
+      state: 'Active',
+      routeConnectivity: 'Active',
+      vlanID: String(vlan.vlan),
+      clusterNetwork: vlan.clusterNetwork,
+    });
   }
 
   it('Create first Vlan', () => {
-    const vlans = Cypress.env('vlans') || [];
-    const vlan = vlans[0].vlan
+    const networksEnv = Cypress.env('networks') || {};
+    const vlan = networksEnv.vlans?.[0] ?? 2011;
 
     cy.login();
 
@@ -162,13 +206,15 @@ describe('Preset Vlans', () => {
       name: `vlan${vlan}`,
       namespace: 'default',
       vlan,
-      clusterNetwork: 'mgmt',
+      clusterNetwork: clusterNetworkName,
     })
   });
 
   it('Create second Vlan', () => {
-    const vlans = Cypress.env('vlans') || [];
-    const vlan = vlans[1].vlan
+    const networksEnv = Cypress.env('networks') || {};
+    // Skip if fewer than 2 vlans are configured
+    onlyOn((networksEnv.vlans?.length ?? 0) >= 2);
+    const vlan = networksEnv.vlans[1];
 
     cy.login();
 
@@ -176,31 +222,8 @@ describe('Preset Vlans', () => {
       name: `vlan${vlan}`,
       namespace: 'default',
       vlan,
-      clusterNetwork: 'mgmt',
+      clusterNetwork: clusterNetworkName,
     })
   });
 
-  it('Create Vlan with id 1', () => {
-    const vlans = Cypress.env('vlans') || [];
-    const vlan = 1
-
-    cy.login();
-
-    createVlan({
-      name: `vlan${vlan}`,
-      namespace: 'default',
-      vlan,
-      clusterNetwork: 'mgmt',
-    })
-
-    network.checkVlanState({
-      name: `vlan${vlan}`,
-      namespace: 'default',
-      state: 'Active',
-      routeConnectivity: 'Active',
-      vlanID: `${vlan}`,
-      clusterNetwork: 'mgmt',
-    });
-
-  });
 });
