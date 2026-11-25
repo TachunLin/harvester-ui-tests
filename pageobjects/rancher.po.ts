@@ -263,30 +263,9 @@ export class rancherPage {
         cy.wait(5000);
     }
 
-    // Reload the Available page periodically until the Harvester extension card is ready to install
-    private waitForHarvesterCardWithReload(remainingAttempts: number = 12) {
-        cy.get('body').then(($body) => {
-            const cardReady = $body.find(this.extension_card_menu_button).length > 0
-                || $body.find(this.extension_card_harvester_install).length > 0;
-            if (cardReady) {
-                return;
-            }
-            if (remainingAttempts > 0) {
-                cy.wait(10000);
-                cy.reload();
-                this.waitForHarvesterCardWithReload(remainingAttempts - 1);
-            } else {
-                throw new Error('Harvester extension card did not appear on the Available page after periodic reloads');
-            }
-        });
-    }
-
     public install_harvester_ui_extension(version: string, rancherVersion: string) {
         // Visit the Extension -> Available page
         this.visit_available_extensions();
-
-        // Periodically reload to ensure the Harvester extension card appears
-        this.waitForHarvesterCardWithReload();
 
         // Parse minor version to determine which UI flow to use (v2.13+ uses dropdown menu)
         const minorVersion = parseInt(rancherVersion.replace(/^v/, '').split('.')[1], 10);
@@ -312,21 +291,7 @@ export class rancherPage {
         versionSelect.select({ option: version, selector: '.vs__dropdown-menu' });
         // Click the Install button to install the Harvester extension
         cy.get(this.install_harvester_extensionButton).click();
-        // Check every 5 seconds (up to 180 seconds) for the reload banner, otherwise reload the page directly
-        const checkReloadButton = (remainingChecks: number) => {
-            cy.get('body').then(($body) => {
-                if ($body.find(this.extension_reloadButton).length > 0) {
-                    cy.get(this.extension_reloadButton).click();
-                } else if (remainingChecks > 0) {
-                    cy.wait(5000);
-                    checkReloadButton(remainingChecks - 1);
-                } else {
-                    cy.log('Reload banner not found after 180 seconds, reloading the page');
-                    cy.reload();
-                }
-            });
-        };
-        checkReloadButton(36);
+        cy.get(this.extension_reloadButton).click();
 
         if (isNewUI) {
             // Switch to Installed tab
